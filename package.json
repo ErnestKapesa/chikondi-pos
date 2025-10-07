@@ -4,6 +4,7 @@
   "description": "Offline-first POS and Inventory Tracking PWA for African micro-entrepreneurs",
   "private": true,
   "scripts": {
+    "start": "cd server && npm start",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
