@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getSalesByDateRange, getExpensesByDateRange, getAllProducts } from '../utils/db';
 import { format, startOfDay, endOfDay, subDays, startOfWeek, startOfMonth } from 'date-fns';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 export default function Reports() {
+  const { formatAmount } = useCurrency();
   const [period, setPeriod] = useState('today');
   const [stats, setStats] = useState({
     totalSales: 0,
@@ -91,7 +93,7 @@ export default function Reports() {
         <div className="card bg-green-50 border-2 border-green-200">
           <p className="text-sm text-gray-600">Total Sales</p>
           <p className="text-xl font-bold text-green-600">
-            MWK {stats.totalSales.toLocaleString()}
+            {formatAmount(stats.totalSales)}
           </p>
           <p className="text-xs text-gray-500">{stats.salesCount} transactions</p>
         </div>
@@ -99,14 +101,14 @@ export default function Reports() {
         <div className="card bg-red-50 border-2 border-red-200">
           <p className="text-sm text-gray-600">Total Expenses</p>
           <p className="text-xl font-bold text-red-600">
-            MWK {stats.totalExpenses.toLocaleString()}
+            {formatAmount(stats.totalExpenses)}
           </p>
         </div>
 
         <div className="card bg-blue-50 border-2 border-blue-200 col-span-2">
           <p className="text-sm text-gray-600">Net Profit</p>
           <p className="text-2xl font-bold text-blue-600">
-            MWK {stats.profit.toLocaleString()}
+            {formatAmount(stats.profit)}
           </p>
         </div>
       </div>
@@ -122,7 +124,7 @@ export default function Reports() {
                   <p className="text-sm text-gray-600">{product.quantity} sold</p>
                 </div>
                 <p className="font-bold text-primary">
-                  MWK {product.revenue.toLocaleString()}
+                  {formatAmount(product.revenue)}
                 </p>
               </div>
             ))}

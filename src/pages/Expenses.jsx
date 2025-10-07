@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { addExpense, getAllExpenses } from '../utils/db';
 import { format } from 'date-fns';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 export default function Expenses() {
+  const { formatAmount, symbol } = useCurrency();
   const [expenses, setExpenses] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -70,7 +72,7 @@ export default function Expenses() {
           <input
             type="number"
             step="0.01"
-            placeholder="Amount (MWK)"
+            placeholder={`Amount (${symbol})`}
             value={formData.amount}
             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
             className="input-field"
@@ -107,7 +109,7 @@ export default function Expenses() {
                 </p>
               </div>
               <p className="text-lg font-bold text-red-600">
-                -MWK {expense.amount.toLocaleString()}
+                -{formatAmount(expense.amount)}
               </p>
             </div>
           </div>

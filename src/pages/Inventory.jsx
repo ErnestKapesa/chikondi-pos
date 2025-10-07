@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getAllProducts, addProduct, updateProduct, deleteProduct } from '../utils/db';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 export default function Inventory() {
+  const { formatAmount, symbol } = useCurrency();
   const [products, setProducts] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -89,7 +91,7 @@ export default function Inventory() {
           <input
             type="number"
             step="0.01"
-            placeholder="Price (MWK)"
+            placeholder={`Price (${symbol})`}
             value={formData.price}
             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
             className="input-field"
@@ -125,7 +127,7 @@ export default function Inventory() {
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <h3 className="font-bold text-lg">{product.name}</h3>
-                <p className="text-gray-600">MWK {product.price.toLocaleString()}</p>
+                <p className="text-gray-600">{formatAmount(product.price)}</p>
                 <p className={`font-semibold ${
                   product.quantity <= (product.lowStockAlert || 5)
                     ? 'text-red-600'

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { addSale, getAllProducts, updateProduct } from '../utils/db';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 export default function Sales() {
+  const { formatAmount, symbol } = useCurrency();
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -73,7 +75,7 @@ export default function Sales() {
             <option value="">Choose a product...</option>
             {products.map(product => (
               <option key={product.id} value={product.id}>
-                {product.name} - MWK {product.price} ({product.quantity} in stock)
+                {product.name} - {formatAmount(product.price)} ({product.quantity} in stock)
               </option>
             ))}
           </select>
@@ -96,7 +98,7 @@ export default function Sales() {
 
             <div>
               <label className="block text-sm font-medium mb-2">
-                Amount (Leave blank for MWK {selectedProduct.price * quantity})
+                Amount (Leave blank for {formatAmount(selectedProduct.price * quantity)})
               </label>
               <input
                 type="number"
@@ -104,7 +106,7 @@ export default function Sales() {
                 value={customAmount}
                 onChange={(e) => setCustomAmount(e.target.value)}
                 className="input-field"
-                placeholder={`MWK ${selectedProduct.price * quantity}`}
+                placeholder={formatAmount(selectedProduct.price * quantity)}
               />
             </div>
 
@@ -137,7 +139,7 @@ export default function Sales() {
             </div>
 
             <button type="submit" className="btn-primary w-full">
-              Record Sale - MWK {customAmount || selectedProduct.price * quantity}
+              Record Sale - {formatAmount(customAmount || selectedProduct.price * quantity)}
             </button>
           </>
         )}
