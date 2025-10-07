@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { addSale, getAllProducts, updateProduct } from '../utils/db';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { Icon } from '../components/Icons';
 
 export default function Sales() {
   const { formatAmount, symbol } = useCurrency();
@@ -55,8 +56,9 @@ export default function Sales() {
       <h2 className="text-2xl font-bold">Record Sale</h2>
 
       {showSuccess && (
-        <div className="bg-green-100 border-2 border-green-500 text-green-800 p-4 rounded-lg">
-          ✅ Sale recorded successfully!
+        <div className="bg-green-100 border-2 border-green-500 text-green-800 p-4 rounded-lg flex items-center gap-3">
+          <Icon name="success" size={24} className="text-green-600" />
+          <span className="font-semibold">Sale recorded successfully!</span>
         </div>
       )}
 
@@ -116,29 +118,32 @@ export default function Sales() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cash')}
-                  className={`py-4 rounded-lg font-semibold ${
+                  className={`py-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors ${
                     paymentMethod === 'cash'
                       ? 'bg-primary text-white'
-                      : 'bg-gray-200 text-gray-800'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
                 >
-                  💵 Cash
+                  <Icon name="cash" size={20} />
+                  Cash
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('mobile_money')}
-                  className={`py-4 rounded-lg font-semibold ${
+                  className={`py-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors ${
                     paymentMethod === 'mobile_money'
                       ? 'bg-primary text-white'
-                      : 'bg-gray-200 text-gray-800'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
                 >
-                  📱 Mobile Money
+                  <Icon name="mobilePayment" size={20} />
+                  Mobile Money
                 </button>
               </div>
             </div>
 
-            <button type="submit" className="btn-primary w-full">
+            <button type="submit" className="btn-primary w-full flex items-center justify-center gap-3">
+              <Icon name="sales" size={20} />
               Record Sale - {formatAmount(customAmount || selectedProduct.price * quantity)}
             </button>
           </>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getUser, clearUser } from '../utils/db';
 import { syncData } from '../utils/sync';
 import { format } from 'date-fns';
+import { Icon } from '../components/Icons';
 
 export default function Settings({ onLogout }) {
   const [user, setUser] = useState(null);
@@ -51,9 +52,14 @@ export default function Settings({ onLogout }) {
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="btn-primary w-full"
+          className="btn-primary w-full flex items-center justify-center gap-2"
         >
-          {syncing ? '⏳ Syncing...' : '🔄 Sync Now'}
+          <Icon 
+            name="sync" 
+            size={20} 
+            className={syncing ? 'animate-spin' : ''} 
+          />
+          {syncing ? 'Syncing...' : 'Sync Now'}
         </button>
         {syncMessage && (
           <p className={`mt-2 text-sm ${
@@ -74,9 +80,10 @@ export default function Settings({ onLogout }) {
 
       <button
         onClick={handleLogout}
-        className="btn-secondary w-full text-red-600"
+        className="btn-secondary w-full text-red-600 flex items-center justify-center gap-2 hover:bg-red-50"
       >
-        🚪 Logout
+        <Icon name="unlock" size={20} />
+        Logout
       </button>
     </div>
   );

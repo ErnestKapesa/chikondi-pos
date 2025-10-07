@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { addExpense, getAllExpenses } from '../utils/db';
 import { format } from 'date-fns';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { Icon } from '../components/Icons';
 
 export default function Expenses() {
   const { formatAmount, symbol } = useCurrency();
@@ -50,9 +51,10 @@ export default function Expenses() {
         <h2 className="text-2xl font-bold">Expenses</h2>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-primary text-white px-4 py-2 rounded-lg"
+          className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors"
         >
-          {showForm ? '✕ Cancel' : '+ Add Expense'}
+          <Icon name={showForm ? 'close' : 'add'} size={16} />
+          {showForm ? 'Cancel' : 'Add Expense'}
         </button>
       </div>
 
@@ -89,7 +91,8 @@ export default function Expenses() {
             ))}
           </select>
           
-          <button type="submit" className="btn-primary w-full">
+          <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
+            <Icon name="add" size={20} />
             Add Expense
           </button>
         </form>
@@ -108,9 +111,12 @@ export default function Expenses() {
                   {format(expense.timestamp, 'MMM d, yyyy h:mm a')}
                 </p>
               </div>
-              <p className="text-lg font-bold text-red-600">
-                -{formatAmount(expense.amount)}
-              </p>
+              <div className="flex items-center gap-2">
+                <Icon name="loss" size={20} className="text-red-600" />
+                <p className="text-lg font-bold text-red-600">
+                  -{formatAmount(expense.amount)}
+                </p>
+              </div>
             </div>
           </div>
         ))}

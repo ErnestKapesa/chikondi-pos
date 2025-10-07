@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { Icon, AppIcons } from './Icons';
 
 export default function Layout() {
   const location = useLocation();
@@ -19,11 +20,11 @@ export default function Layout() {
   }, []);
 
   const navItems = [
-    { path: '/', icon: '🏠', label: 'Home' },
-    { path: '/sales', icon: '💰', label: 'Sales' },
-    { path: '/inventory', icon: '📦', label: 'Stock' },
-    { path: '/expenses', icon: '💸', label: 'Expenses' },
-    { path: '/reports', icon: '📊', label: 'Reports' }
+    { path: '/', icon: 'home', label: 'Home' },
+    { path: '/sales', icon: 'sales', label: 'Sales' },
+    { path: '/inventory', icon: 'inventory', label: 'Stock' },
+    { path: '/expenses', icon: 'expenses', label: 'Expenses' },
+    { path: '/reports', icon: 'reports', label: 'Reports' }
   ];
 
   return (
@@ -36,10 +37,21 @@ export default function Layout() {
             <h1 className="text-xl font-bold">Chikondi POS</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`text-sm px-2 py-1 rounded ${isOnline ? 'bg-green-600' : 'bg-red-600'}`}>
-              {isOnline ? '🌐 Online' : '📴 Offline'}
+            <span className={`text-sm px-3 py-1 rounded-full flex items-center gap-2 ${
+              isOnline ? 'bg-green-600' : 'bg-red-600'
+            }`}>
+              <Icon 
+                name={isOnline ? 'online' : 'offline'} 
+                size={16} 
+                color="white" 
+              />
+              <span className="text-white font-medium">
+                {isOnline ? 'Online' : 'Offline'}
+              </span>
             </span>
-            <Link to="/settings" className="text-2xl">⚙️</Link>
+            <Link to="/settings" className="p-2 hover:bg-green-700 rounded-lg transition-colors">
+              <Icon name="settings" size={20} color="white" />
+            </Link>
           </div>
         </div>
       </header>
@@ -56,14 +68,18 @@ export default function Layout() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center flex-1 h-full ${
+              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                 location.pathname === item.path
-                  ? 'text-primary border-t-2 border-primary'
-                  : 'text-gray-600'
+                  ? 'text-primary border-t-2 border-primary bg-green-50'
+                  : 'text-gray-600 hover:text-primary hover:bg-gray-50'
               }`}
             >
-              <span className="text-2xl">{item.icon}</span>
-              <span className="text-xs mt-1">{item.label}</span>
+              <Icon 
+                name={item.icon} 
+                size={24} 
+                className={location.pathname === item.path ? 'text-primary' : 'text-gray-600'}
+              />
+              <span className="text-xs mt-1 font-medium">{item.label}</span>
             </Link>
           ))}
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getSalesByDateRange, getExpensesByDateRange, getAllProducts } from '../utils/db';
 import { format, startOfDay, endOfDay, subDays, startOfWeek, startOfMonth } from 'date-fns';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { Icon } from '../components/Icons';
 
 export default function Reports() {
   const { formatAmount } = useCurrency();
@@ -91,22 +92,34 @@ export default function Reports() {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="card bg-green-50 border-2 border-green-200">
-          <p className="text-sm text-gray-600">Total Sales</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-600">Total Sales</p>
+            <Icon name="profit" size={20} className="text-green-600" />
+          </div>
           <p className="text-xl font-bold text-green-600">
             {formatAmount(stats.totalSales)}
           </p>
-          <p className="text-xs text-gray-500">{stats.salesCount} transactions</p>
+          <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+            <Icon name="sales" size={12} />
+            {stats.salesCount} transactions
+          </p>
         </div>
 
         <div className="card bg-red-50 border-2 border-red-200">
-          <p className="text-sm text-gray-600">Total Expenses</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-600">Total Expenses</p>
+            <Icon name="expenses" size={20} className="text-red-600" />
+          </div>
           <p className="text-xl font-bold text-red-600">
             {formatAmount(stats.totalExpenses)}
           </p>
         </div>
 
         <div className="card bg-blue-50 border-2 border-blue-200 col-span-2">
-          <p className="text-sm text-gray-600">Net Profit</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-600">Net Profit</p>
+            <Icon name="money" size={24} className="text-blue-600" />
+          </div>
           <p className="text-2xl font-bold text-blue-600">
             {formatAmount(stats.profit)}
           </p>
@@ -123,9 +136,12 @@ export default function Reports() {
                   <p className="font-semibold">{product.name}</p>
                   <p className="text-sm text-gray-600">{product.quantity} sold</p>
                 </div>
-                <p className="font-bold text-primary">
-                  {formatAmount(product.revenue)}
-                </p>
+                <div className="flex items-center gap-2">
+                  <Icon name="star" size={16} className="text-primary" />
+                  <p className="font-bold text-primary">
+                    {formatAmount(product.revenue)}
+                  </p>
+                </div>
               </div>
             ))}
           </div>

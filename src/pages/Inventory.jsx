@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAllProducts, addProduct, updateProduct, deleteProduct } from '../utils/db';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { Icon } from '../components/Icons';
 
 export default function Inventory() {
   const { formatAmount, symbol } = useCurrency();
@@ -69,9 +70,10 @@ export default function Inventory() {
         <h2 className="text-2xl font-bold">Inventory</h2>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-primary text-white px-4 py-2 rounded-lg"
+          className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors"
         >
-          {showForm ? '✕ Cancel' : '+ Add Product'}
+          <Icon name={showForm ? 'close' : 'add'} size={16} />
+          {showForm ? 'Cancel' : 'Add Product'}
         </button>
       </div>
 
@@ -115,7 +117,8 @@ export default function Inventory() {
             className="input-field"
           />
           
-          <button type="submit" className="btn-primary w-full">
+          <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
+            <Icon name={editingProduct ? 'save' : 'add'} size={20} />
             {editingProduct ? 'Update Product' : 'Add Product'}
           </button>
         </form>
@@ -128,27 +131,35 @@ export default function Inventory() {
               <div className="flex-1">
                 <h3 className="font-bold text-lg">{product.name}</h3>
                 <p className="text-gray-600">{formatAmount(product.price)}</p>
-                <p className={`font-semibold ${
+                <div className={`flex items-center gap-2 font-semibold ${
                   product.quantity <= (product.lowStockAlert || 5)
                     ? 'text-red-600'
                     : 'text-green-600'
                 }`}>
-                  Stock: {product.quantity}
-                  {product.quantity <= (product.lowStockAlert || 5) && ' ⚠️ Low'}
-                </p>
+                  <Icon 
+                    name={product.quantity <= (product.lowStockAlert || 5) ? 'lowStock' : 'inStock'} 
+                    size={16} 
+                  />
+                  <span>
+                    Stock: {product.quantity}
+                    {product.quantity <= (product.lowStockAlert || 5) && ' - Low Stock'}
+                  </span>
+                </div>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEdit(product)}
-                  className="text-blue-600 text-2xl"
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Edit Product"
                 >
-                  ✏️
+                  <Icon name="edit" size={20} />
                 </button>
                 <button
                   onClick={() => handleDelete(product.id)}
-                  className="text-red-600 text-2xl"
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete Product"
                 >
-                  🗑️
+                  <Icon name="delete" size={20} />
                 </button>
               </div>
             </div>
