@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getAllSales, getAllExpenses, getAllProducts } from '../utils/db';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 export default function Dashboard() {
+  const { formatAmount } = useCurrency();
   const [stats, setStats] = useState({
     todaySales: 0,
     todayExpenses: 0,
@@ -47,21 +49,21 @@ export default function Dashboard() {
         <div className="card bg-green-50 border-2 border-green-200">
           <p className="text-sm text-gray-600">Sales</p>
           <p className="text-2xl font-bold text-green-600">
-            MWK {stats.todaySales.toLocaleString()}
+            {formatAmount(stats.todaySales)}
           </p>
         </div>
 
         <div className="card bg-red-50 border-2 border-red-200">
           <p className="text-sm text-gray-600">Expenses</p>
           <p className="text-2xl font-bold text-red-600">
-            MWK {stats.todayExpenses.toLocaleString()}
+            {formatAmount(stats.todayExpenses)}
           </p>
         </div>
 
         <div className="card bg-blue-50 border-2 border-blue-200">
           <p className="text-sm text-gray-600">Profit</p>
           <p className="text-2xl font-bold text-blue-600">
-            MWK {stats.todayProfit.toLocaleString()}
+            {formatAmount(stats.todayProfit)}
           </p>
         </div>
 

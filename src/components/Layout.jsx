@@ -31,7 +31,10 @@ export default function Layout() {
       {/* Header */}
       <header className="bg-primary text-white p-4 shadow-md">
         <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold">Chikondi POS</h1>
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="Chikondi POS" className="w-8 h-8" />
+            <h1 className="text-xl font-bold">Chikondi POS</h1>
+          </div>
           <div className="flex items-center gap-3">
             <span className={`text-sm px-2 py-1 rounded ${isOnline ? 'bg-green-600' : 'bg-red-600'}`}>
               {isOnline ? '🌐 Online' : '📴 Offline'}
