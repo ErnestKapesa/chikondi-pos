@@ -7,7 +7,9 @@ import Inventory from './pages/Inventory';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Customers from './pages/Customers';
 import Layout from './components/Layout';
+import Tutorial from './components/Tutorial';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { getUser } from './utils/db';
 
@@ -48,11 +50,15 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="sales" element={<Sales />} />
             <Route path="inventory" element={<Inventory />} />
+            <Route path="customers" element={<Customers />} />
             <Route path="expenses" element={<Expenses />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings onLogout={() => setIsAuthenticated(false)} />} />
           </Route>
         </Routes>
+        
+        {/* Tutorial - shows automatically for new users */}
+        {isAuthenticated && <Tutorial />}
       </BrowserRouter>
     </CurrencyProvider>
   );

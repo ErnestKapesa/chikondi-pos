@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Icon, AppIcons } from './Icons';
+import { BrandLogo } from './Typography';
 
 export default function Layout() {
   const location = useLocation();
@@ -23,7 +24,7 @@ export default function Layout() {
     { path: '/', icon: 'home', label: 'Home' },
     { path: '/sales', icon: 'sales', label: 'Sales' },
     { path: '/inventory', icon: 'inventory', label: 'Stock' },
-    { path: '/expenses', icon: 'expenses', label: 'Expenses' },
+    { path: '/customers', icon: 'customers', label: 'Customers' },
     { path: '/reports', icon: 'reports', label: 'Reports' }
   ];
 
@@ -32,9 +33,8 @@ export default function Layout() {
       {/* Header */}
       <header className="bg-primary text-white p-4 shadow-md">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Chikondi POS" className="w-8 h-8" />
-            <h1 className="text-xl font-bold">Chikondi POS</h1>
+          <div className="flex items-center">
+            <BrandLogo size="md" variant="light" />
           </div>
           <div className="flex items-center gap-3">
             <span className={`text-sm px-3 py-1 rounded-full flex items-center gap-2 ${

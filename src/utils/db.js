@@ -1,28 +1,45 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'chikondi-pos';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Updated to include customers
 
 export async function initDB() {
   return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('user')) {
-        db.createObjectStore('user', { keyPath: 'id' });
+    upgrade(db, oldVersion) {
+      // Create existing stores if they don't exist (for version 1)
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains('user')) {
+          db.createObjectStore('user', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('sales')) {
+          const salesStore = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
+          salesStore.createIndex('timestamp', 'timestamp');
+          salesStore.createIndex('synced', 'synced');
+        }
+        if (!db.objectStoreNames.contains('inventory')) {
+          const inventoryStore = db.createObjectStore('inventory', { keyPath: 'id', autoIncrement: true });
+          inventoryStore.createIndex('name', 'name');
+          inventoryStore.createIndex('synced', 'synced');
+        }
+        if (!db.objectStoreNames.contains('expenses')) {
+          const expensesStore = db.createObjectStore('expenses', { keyPath: 'id', autoIncrement: true });
+          expensesStore.createIndex('timestamp', 'timestamp');
+          expensesStore.createIndex('synced', 'synced');
+        }
       }
-      if (!db.objectStoreNames.contains('sales')) {
-        const salesStore = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
-        salesStore.createIndex('timestamp', 'timestamp');
-        salesStore.createIndex('synced', 'synced');
-      }
-      if (!db.objectStoreNames.contains('inventory')) {
-        const inventoryStore = db.createObjectStore('inventory', { keyPath: 'id', autoIncrement: true });
-        inventoryStore.createIndex('name', 'name');
-        inventoryStore.createIndex('synced', 'synced');
-      }
-      if (!db.objectStoreNames.contains('expenses')) {
-        const expensesStore = db.createObjectStore('expenses', { keyPath: 'id', autoIncrement: true });
-        expensesStore.createIndex('timestamp', 'timestamp');
-        expensesStore.createIndex('synced', 'synced');
+
+      // Add customers store in version 2
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('customers')) {
+          const customersStore = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
+          customersStore.createIndex('name', 'name');
+          customersStore.createIndex('phone', 'phone');
+          customersStore.createIndex('email', 'email');
+          customersStore.createIndex('createdAt', 'createdAt');
+          customersStore.createIndex('lastVisit', 'lastVisit');
+          customersStore.createIndex('totalPurchases', 'totalPurchases');
+          customersStore.createIndex('synced', 'synced');
+        }
       }
     }
   });

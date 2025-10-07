@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { setUser, getUser } from '../utils/db';
 import { CURRENCIES, POPULAR_CURRENCIES, DEFAULT_CURRENCY } from '../utils/currencies';
+import { BrandLogo } from '../components/Typography';
 
 export default function Login({ onLogin }) {
   const [pin, setPin] = useState('');
@@ -113,9 +114,11 @@ export default function Login({ onLogin }) {
       <div className="min-h-screen bg-primary flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
           <div className="text-center mb-6">
-            <img src="/logo.svg" alt="Chikondi POS" className="w-16 h-16 mx-auto mb-2" />
-            <h1 className="text-3xl font-bold text-primary">Reset PIN</h1>
-            <p className="text-gray-600">Answer your security question</p>
+            <div className="mb-4 flex justify-center">
+              <BrandLogo size="xxl" variant="default" />
+            </div>
+            <p className="text-gray-600 font-medium">Reset Your PIN</p>
+            <p className="text-sm text-gray-500">Answer your security question</p>
           </div>
           
           <form onSubmit={handlePinReset} className="space-y-4">
@@ -191,9 +194,10 @@ export default function Login({ onLogin }) {
       <div className="min-h-screen bg-primary flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
           <div className="text-center mb-6">
-            <img src="/logo.svg" alt="Chikondi POS" className="w-16 h-16 mx-auto mb-2" />
-            <h1 className="text-3xl font-bold text-primary">Chikondi POS</h1>
-            <p className="text-gray-600">Setup Your Account</p>
+            <div className="mb-4 flex justify-center">
+              <BrandLogo size="xxl" variant="default" />
+            </div>
+            <p className="text-gray-600 font-medium">Setup Your Account</p>
           </div>
           
           <form onSubmit={handleSetup} className="space-y-4">
@@ -310,9 +314,10 @@ export default function Login({ onLogin }) {
     <div className="min-h-screen bg-primary flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <div className="text-center mb-6">
-          <img src="/logo.svg" alt="Chikondi POS" className="w-16 h-16 mx-auto mb-2" />
-          <h1 className="text-3xl font-bold text-primary">Chikondi POS</h1>
-          <p className="text-gray-600">Enter Your PIN</p>
+          <div className="mb-4 flex justify-center">
+            <BrandLogo size="xxl" variant="default" />
+          </div>
+          <p className="text-gray-600 font-medium">Enter Your PIN</p>
         </div>
         
         <form onSubmit={handleLogin} className="space-y-4">
