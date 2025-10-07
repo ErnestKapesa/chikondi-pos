@@ -70,14 +70,13 @@ import {
   Monitor,
   Cloud,
   CloudOff,
-  Sync,
+  RefreshCw,
   
   // Actions
   Search,
   Filter,
   Download,
   Upload,
-  RefreshCw,
   Eye,
   EyeOff,
   
@@ -172,7 +171,7 @@ export const Icons = {
   // Connectivity
   online: Wifi,
   offline: WifiOff,
-  sync: Sync,
+  sync: RefreshCw,
   cloud: Cloud,
   
   // Time
