@@ -10,7 +10,9 @@ import {
   deleteCustomer,
   getCustomerStats,
   getCustomersBySegment 
-} from '../utils/customerDb';
+} from '../utils/dbUnified';
+import { LoadingSpinner, InlineLoading } from '../components/Loading';
+import { useErrorHandler } from '../components/ErrorBoundary';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -21,6 +23,8 @@ export default function Customers() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const { handleError } = useErrorHandler();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -44,11 +48,14 @@ export default function Customers() {
 
   const loadCustomers = async () => {
     try {
+      setLoading(true);
       const customerData = await getAllCustomers();
       setCustomers(customerData);
-      setLoading(false);
+      console.log(`✅ Loaded ${customerData.length} customers`);
     } catch (error) {
       console.error('Error loading customers:', error);
+      handleError(error);
+    } finally {
       setLoading(false);
     }
   };
@@ -57,8 +64,10 @@ export default function Customers() {
     try {
       const statsData = await getCustomerStats();
       setStats(statsData);
+      console.log('✅ Loaded customer stats:', statsData);
     } catch (error) {
       console.error('Error loading stats:', error);
+      // Don't show error for stats, just log it
     }
   };
 
@@ -90,43 +99,80 @@ export default function Customers() {
 
   const handleAddCustomer = async (e) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!formData.name || formData.name.trim() === '') {
+      alert('Customer name is required');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      await addCustomer(formData);
+      console.log('🔄 Adding customer:', formData);
+      const customerId = await addCustomer(formData);
+      console.log('✅ Customer added successfully with ID:', customerId);
+      
       analytics.customerAdded();
       setShowAddForm(false);
       resetForm();
-      loadCustomers();
-      loadStats();
+      
+      // Reload data
+      await Promise.all([loadCustomers(), loadStats()]);
+      
+      alert('Customer added successfully!');
     } catch (error) {
-      console.error('Error adding customer:', error);
-      alert('Failed to add customer');
+      console.error('❌ Error adding customer:', error);
+      alert(`Failed to add customer: ${error.message}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEditCustomer = async (e) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!formData.name || formData.name.trim() === '') {
+      alert('Customer name is required');
+      return;
+    }
+
+    setSubmitting(true);
     try {
+      console.log('🔄 Updating customer:', editingCustomer.id, formData);
       await updateCustomer(editingCustomer.id, formData);
+      console.log('✅ Customer updated successfully');
+      
       analytics.customerEdited();
       setEditingCustomer(null);
       resetForm();
-      loadCustomers();
-      loadStats();
+      
+      // Reload data
+      await Promise.all([loadCustomers(), loadStats()]);
+      
+      alert('Customer updated successfully!');
     } catch (error) {
-      console.error('Error updating customer:', error);
-      alert('Failed to update customer');
+      console.error('❌ Error updating customer:', error);
+      alert(`Failed to update customer: ${error.message}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDeleteCustomer = async (customer) => {
     if (confirm(`Are you sure you want to delete ${customer.name}?`)) {
       try {
+        console.log('🔄 Deleting customer:', customer.id);
         await deleteCustomer(customer.id);
-        loadCustomers();
-        loadStats();
+        console.log('✅ Customer deleted successfully');
+        
+        // Reload data
+        await Promise.all([loadCustomers(), loadStats()]);
+        
+        alert('Customer deleted successfully!');
       } catch (error) {
-        console.error('Error deleting customer:', error);
-        alert('Failed to delete customer');
+        console.error('❌ Error deleting customer:', error);
+        alert(`Failed to delete customer: ${error.message}`);
       }
     }
   };
@@ -178,11 +224,7 @@ export default function Customers() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading customers...</div>
-      </div>
-    );
+    return <InlineLoading message="Loading customers..." />;
   }
 
   return (
@@ -414,11 +456,23 @@ export default function Customers() {
                     resetForm();
                   }}
                   className="btn-secondary flex-1"
+                  disabled={submitting}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary flex-1">
-                  {editingCustomer ? 'Update Customer' : 'Add Customer'}
+                <button 
+                  type="submit" 
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <LoadingSpinner size="sm" message="" />
+                      {editingCustomer ? 'Updating...' : 'Adding...'}
+                    </>
+                  ) : (
+                    editingCustomer ? 'Update Customer' : 'Add Customer'
+                  )}
                 </button>
               </div>
             </form>

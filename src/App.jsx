@@ -8,10 +8,11 @@ import Layout from './components/Layout';
 import Tutorial from './components/Tutorial';
 import UpdateNotification from './components/UpdateNotification';
 import { CurrencyProvider } from './contexts/CurrencyContext';
-import { getUser } from './utils/dbOptimized';
+import { getUser } from './utils/dbUnified';
 import { ErrorBoundary, PageErrorBoundary } from './components/ErrorBoundary';
 import { PageLoading, LoadingSpinner } from './components/Loading';
 import { logger } from './utils/logger';
+import { autoMigrate } from './utils/dbMigration';
 
 // Lazy load heavy components for better performance
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -32,6 +33,13 @@ function App() {
 
   const checkAuth = async () => {
     try {
+      // First, ensure database is ready
+      const migrationResult = await autoMigrate();
+      if (!migrationResult.success) {
+        throw new Error(`Database initialization failed: ${migrationResult.message}`);
+      }
+      
+      // Then check authentication
       const user = await getUser();
       setIsAuthenticated(!!user);
       logger.log('Authentication check completed:', { hasUser: !!user });

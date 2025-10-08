@@ -4,7 +4,12 @@ import { track } from '@vercel/analytics';
 // Track key user actions for business insights
 export const trackEvent = (eventName, properties = {}) => {
   try {
-    track(eventName, properties);
+    // Only track in production or when explicitly enabled
+    if (typeof track === 'function') {
+      track(eventName, properties);
+    } else {
+      console.log('📊 Analytics (dev):', eventName, properties);
+    }
   } catch (error) {
     console.warn('Analytics tracking failed:', error);
   }
@@ -12,6 +17,8 @@ export const trackEvent = (eventName, properties = {}) => {
 
 // Predefined events for consistent tracking
 export const analytics = {
+  // Add trackEvent method to analytics object for backward compatibility
+  trackEvent: trackEvent,
   // User onboarding
   tutorialStarted: () => trackEvent('tutorial_started'),
   tutorialCompleted: () => trackEvent('tutorial_completed'),

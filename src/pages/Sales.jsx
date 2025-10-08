@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { addSale, getAllProducts, updateProduct } from '../utils/dbOptimized';
-import { getAllCustomers } from '../utils/customerDb';
+import { addSale, getAllProducts, updateProduct, getAllCustomers } from '../utils/dbUnified';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Icon } from '../components/Icons';
 import { analytics } from '../utils/analytics';

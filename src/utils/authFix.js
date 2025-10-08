@@ -1,5 +1,5 @@
 // Authentication Flow Fix for Chikondi POS
-import { getUser, logoutUser, hasUserEverBeenSetup, markUserAsSetup } from './db';
+import { getUser, logoutUser, hasUserEverBeenSetup, markUserAsSetup } from './dbUnified';
 
 // Debug authentication state
 export async function debugAuthState() {

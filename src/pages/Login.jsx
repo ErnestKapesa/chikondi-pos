@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { setUser, getUser, hasUserEverBeenSetup, markUserAsSetup } from '../utils/db';
+import { setUser, getUser, hasUserEverBeenSetup, markUserAsSetup } from '../utils/dbUnified';
 import { CURRENCIES, POPULAR_CURRENCIES, DEFAULT_CURRENCY } from '../utils/currencies';
 import { BrandLogo } from '../components/Typography';
 import { 
@@ -10,6 +10,7 @@ import {
   SECURITY_CONFIG 
 } from '../utils/security';
 import { debugAuthState, autoFixAuth } from '../utils/authFix';
+import { autoRepairAuth, testPinMatch } from '../utils/authRepair';
 
 export default function Login({ onLogin }) {
   const [pin, setPin] = useState('');
@@ -60,10 +61,14 @@ export default function Login({ onLogin }) {
 
   const checkSetup = async () => {
     try {
+      // Auto-repair authentication issues
+      const repairResult = await autoRepairAuth();
+      console.log('🔧 Auth repair result:', repairResult);
+      
       // Debug current auth state
       await debugAuthState();
       
-      // Auto-fix any auth issues
+      // Auto-fix any remaining auth issues
       const fixResult = await autoFixAuth();
       if (fixResult.fixed) {
         console.log('🔧 Auth issue auto-fixed:', fixResult.action);
@@ -75,7 +80,8 @@ export default function Login({ onLogin }) {
       console.log('🔍 Auth Check:', { 
         hasUser: !!user, 
         everSetup, 
-        userShopName: user?.shopName 
+        userShopName: user?.shopName,
+        userPin: user?.pin ? 'EXISTS' : 'MISSING'
       });
       
       if (user) {
@@ -244,34 +250,55 @@ export default function Login({ onLogin }) {
       return;
     }
 
-    const user = await getUser();
-    if (user && user.pin === pin) {
-      // Successful login
-      trackLoginAttempt(true, pin);
-      clearLoginAttempts();
-      onLogin();
-    } else {
-      // Failed login
-      trackLoginAttempt(false, pin);
+    try {
+      // Test PIN matching with detailed logging
+      const pinTest = await testPinMatch(pin);
+      console.log('🔍 PIN test result:', pinTest);
       
-      const everSetup = await hasUserEverBeenSetup();
-      if (everSetup && !user) {
-        setError('Session expired. Please set up your account again.');
-        setIsSetup(true);
+      const user = await getUser();
+      
+      if (pinTest.match) {
+        // Successful login
+        console.log('✅ Login successful');
+        trackLoginAttempt(true, pin);
+        clearLoginAttempts();
+        onLogin();
       } else {
-        const attempts = JSON.parse(localStorage.getItem('chikondi-login-attempts') || '[]');
-        const recentFailedAttempts = attempts.filter(a => 
-          !a.success && (Date.now() - a.timestamp) < 60 * 60 * 1000
-        ).length;
+        // Failed login - provide detailed error info
+        console.log('❌ Login failed:', pinTest.reason);
+        trackLoginAttempt(false, pin);
         
-        const remainingAttempts = SECURITY_CONFIG.MAX_LOGIN_ATTEMPTS - recentFailedAttempts;
-        
-        if (remainingAttempts <= 1) {
-          setError(`Incorrect PIN. Account will be locked after ${remainingAttempts} more failed attempt(s).`);
+        // Handle different failure reasons
+        if (pinTest.reason === 'no_user') {
+          const everSetup = await hasUserEverBeenSetup();
+          if (everSetup) {
+            setError('Your account data seems to be missing. Please try the emergency reset option below.');
+          } else {
+            setError('No account found. Please set up your account first.');
+            setIsSetup(true);
+          }
+        } else if (pinTest.reason === 'no_pin_stored') {
+          setError('Your PIN is missing from your account. Please use the emergency reset option below.');
         } else {
-          setError(`Incorrect PIN. ${remainingAttempts} attempts remaining.`);
+          // Regular PIN mismatch
+          const attempts = JSON.parse(localStorage.getItem('chikondi-login-attempts') || '[]');
+          const recentFailedAttempts = attempts.filter(a => 
+            !a.success && (Date.now() - a.timestamp) < 60 * 60 * 1000
+          ).length;
+          
+          const remainingAttempts = SECURITY_CONFIG.MAX_LOGIN_ATTEMPTS - recentFailedAttempts;
+          
+          if (remainingAttempts <= 1) {
+            setError(`Incorrect PIN. Account will be locked after ${remainingAttempts} more failed attempt(s).`);
+          } else {
+            setError(`Incorrect PIN. ${remainingAttempts} attempts remaining.`);
+          }
         }
+        setPin('');
       }
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      setError('Login failed due to a technical issue. Please try the emergency reset option below.');
       setPin('');
     }
   };
@@ -546,30 +573,51 @@ export default function Login({ onLogin }) {
             Login
           </button>
 
-          <div className="flex justify-between">
-            <button 
-              type="button"
-              onClick={handleShowPinReset}
-              className="text-primary text-sm hover:underline"
-            >
-              Forgot PIN?
-            </button>
-            
-            {existingUser && (
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between">
               <button 
                 type="button"
-                onClick={() => {
-                  if (confirm('This will clear the current shop data and let you set up a new shop. Are you sure?')) {
-                    localStorage.removeItem('chikondi-ever-setup');
-                    setIsSetup(true);
-                    setExistingUser(null);
+                onClick={handleShowPinReset}
+                className="text-primary text-sm hover:underline"
+              >
+                Forgot PIN?
+              </button>
+              
+              {existingUser && (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (confirm('This will clear the current shop data and let you set up a new shop. Are you sure?')) {
+                      localStorage.removeItem('chikondi-ever-setup');
+                      setIsSetup(true);
+                      setExistingUser(null);
+                    }
+                  }}
+                  className="text-gray-500 text-sm hover:underline"
+                >
+                  Not your shop?
+                </button>
+              )}
+            </div>
+            
+            {/* Emergency Reset Option */}
+            <div className="text-center">
+              <button 
+                type="button"
+                onClick={async () => {
+                  if (confirm(
+                    'EMERGENCY RESET: This will delete all your data and start fresh. ' +
+                    'Only use this if you cannot log in. Are you absolutely sure?'
+                  )) {
+                    const { emergencyReset } = await import('../utils/authRepair');
+                    emergencyReset();
                   }
                 }}
-                className="text-gray-500 text-sm hover:underline"
+                className="text-red-600 text-xs hover:underline"
               >
-                Not your shop?
+                🚨 Emergency Reset (if login is broken)
               </button>
-            )}
+            </div>
           </div>
         </form>
       </div>
