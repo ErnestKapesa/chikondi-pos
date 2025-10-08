@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
-import { setUser, getUser } from '../utils/db';
+import { setUser, getUser, hasUserEverBeenSetup, markUserAsSetup } from '../utils/db';
 import { CURRENCIES, POPULAR_CURRENCIES, DEFAULT_CURRENCY } from '../utils/currencies';
 import { BrandLogo } from '../components/Typography';
+import { 
+  validatePinStrength, 
+  trackLoginAttempt, 
+  isAccountLocked, 
+  clearLoginAttempts,
+  SECURITY_CONFIG 
+} from '../utils/security';
 
 export default function Login({ onLogin }) {
   const [pin, setPin] = useState('');
@@ -15,22 +22,68 @@ export default function Login({ onLogin }) {
   const [showPinReset, setShowPinReset] = useState(false);
   const [resetAnswer, setResetAnswer] = useState('');
   const [error, setError] = useState('');
+  const [existingUser, setExistingUser] = useState(null);
+  const [resetUser, setResetUser] = useState(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockoutTime, setLockoutTime] = useState(0);
+  const [pinStrength, setPinStrength] = useState({ isValid: true, errors: [], strength: 0 });
 
   useEffect(() => {
     checkSetup();
+    checkAccountLock();
   }, []);
+
+  useEffect(() => {
+    if (lockoutTime > 0) {
+      const timer = setInterval(() => {
+        const remaining = lockoutTime - Date.now();
+        if (remaining <= 0) {
+          setIsLocked(false);
+          setLockoutTime(0);
+          clearInterval(timer);
+        }
+      }, 1000);
+      
+      return () => clearInterval(timer);
+    }
+  }, [lockoutTime]);
+
+  const checkAccountLock = () => {
+    const lockStatus = isAccountLocked();
+    if (lockStatus.locked) {
+      setIsLocked(true);
+      setLockoutTime(lockStatus.unlockTime);
+      setError(`Account locked due to too many failed attempts. Try again in ${Math.ceil(lockStatus.remainingTime / 60000)} minutes.`);
+    }
+  };
 
   const checkSetup = async () => {
     const user = await getUser();
-    setIsSetup(!user);
+    const everSetup = await hasUserEverBeenSetup();
+    
+    if (user) {
+      // User exists, show login
+      setExistingUser(user);
+      setIsSetup(false);
+    } else if (everSetup) {
+      // User logged out but was setup before, show login
+      setExistingUser(null);
+      setIsSetup(false);
+    } else {
+      // Truly new user, show setup
+      setExistingUser(null);
+      setIsSetup(true);
+    }
   };
 
   const handleSetup = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (newPin.length < 4) {
-      setError('PIN must be at least 4 digits');
+    // Validate PIN strength
+    const pinValidation = validatePinStrength(newPin);
+    if (!pinValidation.isValid) {
+      setError(pinValidation.errors[0]);
       return;
     }
 
@@ -49,30 +102,63 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    if (securityAnswer.trim().length < 2) {
+      setError('Security answer must be at least 2 characters');
+      return;
+    }
+
     await setUser({
       pin: newPin,
       shopName: shopName.trim(),
       currency: currency,
       securityQuestion: securityQuestion.trim(),
       securityAnswer: securityAnswer.trim().toLowerCase(),
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      lastPinReset: Date.now(),
+      pinResetCount: 0,
+      securityLevel: 'standard'
     });
 
+    // Mark that user has been set up
+    await markUserAsSetup();
+
+    // Clear any previous login attempts
+    clearLoginAttempts();
+
     onLogin();
+  };
+
+  const handlePinChange = (value) => {
+    setNewPin(value);
+    if (value) {
+      const validation = validatePinStrength(value);
+      setPinStrength(validation);
+    } else {
+      setPinStrength({ isValid: true, errors: [], strength: 0 });
+    }
   };
 
   const handlePinReset = async (e) => {
     e.preventDefault();
     setError('');
 
-    const user = await getUser();
+    const user = resetUser || await getUser();
     if (!user) {
-      setError('No account found');
+      setError('No account found. Please set up your account again.');
+      setShowPinReset(false);
+      setIsSetup(true);
       return;
     }
 
-    if (resetAnswer.trim().toLowerCase() !== user.securityAnswer) {
-      setError('Incorrect security answer');
+    if (!user.securityQuestion || !user.securityAnswer) {
+      setError('Security question not found. Please set up your account again.');
+      setShowPinReset(false);
+      setIsSetup(true);
+      return;
+    }
+
+    if (resetAnswer.trim().toLowerCase() !== user.securityAnswer.toLowerCase()) {
+      setError('Incorrect security answer. Please try again.');
       return;
     }
 
@@ -86,25 +172,81 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    // Enhanced security: Update PIN with timestamp
     await setUser({
       ...user,
-      pin: newPin
+      pin: newPin,
+      lastPinReset: Date.now(),
+      pinResetCount: (user.pinResetCount || 0) + 1
     });
 
     setShowPinReset(false);
+    setNewPin('');
+    setConfirmPin('');
+    setResetAnswer('');
     setError('');
-    alert('PIN reset successfully!');
+    
+    alert('PIN reset successfully! You can now log in with your new PIN.');
+  };
+
+  const handleShowPinReset = async () => {
+    const user = await getUser();
+    if (!user) {
+      setError('No account found. Please set up your account first.');
+      return;
+    }
+    
+    if (!user.securityQuestion) {
+      setError('Security question not set up. Please contact support.');
+      return;
+    }
+    
+    setResetUser(user);
+    setShowPinReset(true);
+    setError('');
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
+    // Check if account is locked
+    const lockStatus = isAccountLocked();
+    if (lockStatus.locked) {
+      setIsLocked(true);
+      setLockoutTime(lockStatus.unlockTime);
+      setError(`Account locked. Try again in ${Math.ceil(lockStatus.remainingTime / 60000)} minutes.`);
+      return;
+    }
+
     const user = await getUser();
     if (user && user.pin === pin) {
+      // Successful login
+      trackLoginAttempt(true, pin);
+      clearLoginAttempts();
       onLogin();
     } else {
-      setError('Incorrect PIN');
+      // Failed login
+      trackLoginAttempt(false, pin);
+      
+      const everSetup = await hasUserEverBeenSetup();
+      if (everSetup && !user) {
+        setError('Session expired. Please set up your account again.');
+        setIsSetup(true);
+      } else {
+        const attempts = JSON.parse(localStorage.getItem('chikondi-login-attempts') || '[]');
+        const recentFailedAttempts = attempts.filter(a => 
+          !a.success && (Date.now() - a.timestamp) < 60 * 60 * 1000
+        ).length;
+        
+        const remainingAttempts = SECURITY_CONFIG.MAX_LOGIN_ATTEMPTS - recentFailedAttempts;
+        
+        if (remainingAttempts <= 1) {
+          setError(`Incorrect PIN. Account will be locked after ${remainingAttempts} more failed attempt(s).`);
+        } else {
+          setError(`Incorrect PIN. ${remainingAttempts} attempts remaining.`);
+        }
+      }
       setPin('');
     }
   };
@@ -125,7 +267,7 @@ export default function Login({ onLogin }) {
             <div>
               <label className="block text-sm font-medium mb-2">Security Question</label>
               <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">
-                {JSON.parse(localStorage.getItem('chikondi-user') || '{}').securityQuestion || 'No question found'}
+                {resetUser?.securityQuestion || 'Loading security question...'}
               </p>
             </div>
             
@@ -247,12 +389,45 @@ export default function Login({ onLogin }) {
                 type="password"
                 inputMode="numeric"
                 value={newPin}
-                onChange={(e) => setNewPin(e.target.value)}
-                className="input-field"
-                placeholder="Enter 4-digit PIN"
-                maxLength="6"
+                onChange={(e) => handlePinChange(e.target.value)}
+                className={`input-field ${!pinStrength.isValid ? 'border-red-500' : ''}`}
+                placeholder="Enter 4-8 digit PIN"
+                maxLength="8"
                 required
               />
+              
+              {newPin && (
+                <div className="mt-2">
+                  {/* PIN Strength Indicator */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          pinStrength.strength < 30 ? 'bg-red-500' :
+                          pinStrength.strength < 60 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${pinStrength.strength}%` }}
+                      />
+                    </div>
+                    <span className={`text-xs font-medium ${
+                      pinStrength.strength < 30 ? 'text-red-600' :
+                      pinStrength.strength < 60 ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>
+                      {pinStrength.strength < 30 ? 'Weak' :
+                       pinStrength.strength < 60 ? 'Fair' : 'Strong'}
+                    </span>
+                  </div>
+                  
+                  {/* PIN Validation Errors */}
+                  {pinStrength.errors.length > 0 && (
+                    <div className="text-red-600 text-xs">
+                      {pinStrength.errors[0]}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             <div>
@@ -317,7 +492,14 @@ export default function Login({ onLogin }) {
           <div className="mb-4 flex justify-center">
             <BrandLogo size="xxl" variant="default" />
           </div>
-          <p className="text-gray-600 font-medium">Enter Your PIN</p>
+          {existingUser ? (
+            <div className="mb-2">
+              <p className="text-gray-800 font-semibold text-lg">{existingUser.shopName}</p>
+              <p className="text-gray-600 font-medium">Welcome back! Enter your PIN</p>
+            </div>
+          ) : (
+            <p className="text-gray-600 font-medium">Enter Your PIN</p>
+          )}
         </div>
         
         <form onSubmit={handleLogin} className="space-y-4">
@@ -339,13 +521,31 @@ export default function Login({ onLogin }) {
             Login
           </button>
 
-          <button 
-            type="button"
-            onClick={() => setShowPinReset(true)}
-            className="w-full text-center text-primary text-sm hover:underline"
-          >
-            Forgot PIN?
-          </button>
+          <div className="flex justify-between">
+            <button 
+              type="button"
+              onClick={handleShowPinReset}
+              className="text-primary text-sm hover:underline"
+            >
+              Forgot PIN?
+            </button>
+            
+            {existingUser && (
+              <button 
+                type="button"
+                onClick={() => {
+                  if (confirm('This will clear the current shop data and let you set up a new shop. Are you sure?')) {
+                    localStorage.removeItem('chikondi-ever-setup');
+                    setIsSetup(true);
+                    setExistingUser(null);
+                  }
+                }}
+                className="text-gray-500 text-sm hover:underline"
+              >
+                Not your shop?
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>

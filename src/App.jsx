@@ -12,6 +12,7 @@ import Customers from './pages/Customers';
 import Invoices from './pages/Invoices';
 import Layout from './components/Layout';
 import Tutorial from './components/Tutorial';
+import UpdateNotification from './components/UpdateNotification';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { getUser } from './utils/db';
 
@@ -41,9 +42,9 @@ function App() {
     <CurrencyProvider>
       <BrowserRouter>
         <Routes>
-          <Route 
-            path="/login" 
-            element={isAuthenticated ? <Navigate to="/" /> : <Login onLogin={() => setIsAuthenticated(true)} />} 
+          <Route
+            path="/login"
+            element={isAuthenticated ? <Navigate to="/" /> : <Login onLogin={() => setIsAuthenticated(true)} />}
           />
           <Route
             path="/"
@@ -58,10 +59,13 @@ function App() {
             <Route path="settings" element={<Settings onLogout={() => setIsAuthenticated(false)} />} />
           </Route>
         </Routes>
-        
+
         {/* Tutorial - shows automatically for new users */}
         {isAuthenticated && <Tutorial />}
-        
+
+        {/* Update Notification - shows for existing users with new features */}
+        {isAuthenticated && <UpdateNotification />}
+
         {/* Vercel Analytics */}
         <Analytics />
       </BrowserRouter>

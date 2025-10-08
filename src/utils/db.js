@@ -61,6 +61,25 @@ export async function clearUser() {
   return db.delete('user', 1);
 }
 
+// Check if user has ever been set up (for logout vs new user distinction)
+export async function hasUserEverBeenSetup() {
+  const setupFlag = localStorage.getItem('chikondi-ever-setup');
+  return setupFlag === 'true';
+}
+
+// Mark that user has been set up at least once
+export async function markUserAsSetup() {
+  localStorage.setItem('chikondi-ever-setup', 'true');
+}
+
+// Logout user but remember they were set up before
+export async function logoutUser() {
+  const db = await initDB();
+  // Clear user data but keep setup flag
+  await db.delete('user', 1);
+  // Don't clear the setup flag - user should go to login, not setup
+}
+
 // Sales operations
 export async function addSale(sale) {
   const db = await initDB();

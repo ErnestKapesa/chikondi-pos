@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
-import { getUser, clearUser } from '../utils/db';
+import { getUser, logoutUser } from '../utils/db';
 import { syncData } from '../utils/sync';
 import { format } from 'date-fns';
 import { Icon } from '../components/Icons';
 import { TutorialTrigger } from '../components/Tutorial';
+import { UpdateSettings } from '../components/UpdateNotification';
+import SecuritySettings from '../components/SecuritySettings';
 import { analytics } from '../utils/analytics';
+import { CURRENT_VERSION } from '../utils/appUpdates';
+import { 
+  requestNotificationPermission,
+  getNotificationSettings,
+  setNotificationSettings,
+  isPushNotificationSupported
+} from '../utils/pushNotifications';
 import { 
   downloadDataAsJSON, 
   exportAsCSV, 
@@ -18,11 +27,22 @@ export default function Settings({ onLogout }) {
   const [syncMessage, setSyncMessage] = useState('');
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
+  const [notificationSettings, setNotificationSettingsState] = useState({
+    enabled: false,
+    updateNotifications: true,
+    featureAnnouncements: true
+  });
 
   useEffect(() => {
     loadUser();
+    loadNotificationSettings();
     analytics.pageViewed('settings');
   }, []);
+
+  const loadNotificationSettings = () => {
+    const settings = getNotificationSettings();
+    setNotificationSettingsState(settings);
+  };
 
   const loadUser = async () => {
     const userData = await getUser();
@@ -81,9 +101,32 @@ export default function Settings({ onLogout }) {
     }
   };
 
+  const handleEnableNotifications = async () => {
+    if (!isPushNotificationSupported()) {
+      alert('Push notifications are not supported on this device/browser.');
+      return;
+    }
+
+    const result = await requestNotificationPermission();
+    if (result.success) {
+      const newSettings = { ...notificationSettings, enabled: true };
+      setNotificationSettings(newSettings);
+      setNotificationSettingsState(newSettings);
+      alert('Notifications enabled! You\'ll be notified about app updates and new features.');
+    } else {
+      alert('Failed to enable notifications. Please check your browser settings.');
+    }
+  };
+
+  const handleNotificationSettingChange = (key, value) => {
+    const newSettings = { ...notificationSettings, [key]: value };
+    setNotificationSettings(newSettings);
+    setNotificationSettingsState(newSettings);
+  };
+
   const handleLogout = async () => {
     if (confirm('Are you sure you want to logout?')) {
-      await clearUser();
+      await logoutUser();
       onLogout();
     }
   };
@@ -193,11 +236,87 @@ export default function Settings({ onLogout }) {
       </div>
 
       <div className="card">
+        <UpdateSettings />
+      </div>
+
+      <SecuritySettings />
+
+      <div className="card">
+        <h3 className="font-bold text-lg mb-3">Push Notifications</h3>
+        <div className="space-y-4">
+          {!notificationSettings.enabled ? (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Icon name="notification" size={20} className="text-blue-600 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-medium text-blue-900 mb-1">Stay Updated</h4>
+                  <p className="text-sm text-blue-800 mb-3">
+                    Get notified about new features, updates, and important announcements.
+                  </p>
+                  <button
+                    onClick={handleEnableNotifications}
+                    className="btn-primary text-sm py-2 px-4"
+                  >
+                    Enable Notifications
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-green-600">
+                <Icon name="success" size={16} />
+                <span className="text-sm font-medium">Notifications Enabled</span>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <h4 className="font-medium">App Updates</h4>
+                    <p className="text-sm text-gray-600">Get notified about new features and improvements</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notificationSettings.updateNotifications}
+                      onChange={(e) => handleNotificationSettingChange('updateNotifications', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <h4 className="font-medium">Feature Announcements</h4>
+                    <p className="text-sm text-gray-600">Learn about new capabilities as they're released</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notificationSettings.featureAnnouncements}
+                      onChange={(e) => handleNotificationSettingChange('featureAnnouncements', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
         <h3 className="font-bold text-lg mb-3">About</h3>
-        <p className="text-sm text-gray-600 mb-2">Chikondi POS v1.0.0</p>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 mb-2">Chikondi POS v{CURRENT_VERSION}</p>
+        <p className="text-sm text-gray-600 mb-2">
           Offline-first POS system for micro-entrepreneurs
         </p>
+        <div className="text-xs text-gray-500">
+          <p>Last updated: {new Date().toLocaleDateString()}</p>
+          <p>Build: Production</p>
+        </div>
       </div>
 
       <button
