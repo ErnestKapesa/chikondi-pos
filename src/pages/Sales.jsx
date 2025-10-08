@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { addSale, getAllProducts, updateProduct } from '../utils/db';
+import { addSale, getAllProducts, updateProduct } from '../utils/dbOptimized';
 import { getAllCustomers } from '../utils/customerDb';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Icon } from '../components/Icons';
 import { analytics } from '../utils/analytics';
 import { createInvoiceFromSale, downloadInvoice } from '../utils/invoiceGenerator';
+import { useLoading, LoadingOverlay, InlineLoading } from '../components/Loading';
+import { useErrorHandler } from '../components/ErrorBoundary';
+import { logger } from '../utils/logger';
 
 export default function Sales() {
   const { formatAmount, symbol } = useCurrency();
@@ -17,7 +20,11 @@ export default function Sales() {
   const [customAmount, setCustomAmount] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastSale, setLastSale] = useState(null);
+  
+  const { isLoading, startLoading, stopLoading, withLoading } = useLoading();
+  const { handleError } = useErrorHandler();
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -25,12 +32,24 @@ export default function Sales() {
   }, []);
 
   const loadData = async () => {
-    const [allProducts, allCustomers] = await Promise.all([
-      getAllProducts(),
-      getAllCustomers()
-    ]);
-    setProducts(allProducts.filter(p => p.quantity > 0));
-    setCustomers(allCustomers);
+    try {
+      setLoadingData(true);
+      const [allProducts, allCustomers] = await Promise.all([
+        getAllProducts(),
+        getAllCustomers()
+      ]);
+      setProducts(allProducts.filter(p => p.quantity > 0));
+      setCustomers(allCustomers);
+      logger.log('Sales data loaded:', { 
+        productsCount: allProducts.length, 
+        customersCount: allCustomers.length 
+      });
+    } catch (error) {
+      logger.error('Failed to load sales data:', error);
+      handleError(error);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   const handleSale = async (e) => {
@@ -38,47 +57,72 @@ export default function Sales() {
     
     if (!selectedProduct) return;
 
-    const amount = customAmount ? parseFloat(customAmount) : selectedProduct.price * quantity;
+    try {
+      await withLoading(async () => {
+        // Validate inputs
+        if (quantity <= 0) {
+          throw new Error('Quantity must be greater than 0');
+        }
+        
+        if (quantity > selectedProduct.quantity) {
+          throw new Error(`Only ${selectedProduct.quantity} items available in stock`);
+        }
 
-    const saleData = {
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-      customerId: selectedCustomer?.id,
-      quantity,
-      amount,
-      paymentMethod,
-      items: [{
-        name: selectedProduct.name,
-        quantity: quantity,
-        price: selectedProduct.price,
-        total: amount
-      }],
-      total: amount,
-      timestamp: Date.now()
-    };
+        const amount = customAmount ? parseFloat(customAmount) : selectedProduct.price * quantity;
+        
+        if (amount <= 0) {
+          throw new Error('Sale amount must be greater than 0');
+        }
 
-    const saleId = await addSale(saleData);
+        const saleData = {
+          productId: selectedProduct.id,
+          productName: selectedProduct.name,
+          customerId: selectedCustomer?.id,
+          customerName: selectedCustomer?.name,
+          quantity,
+          amount,
+          paymentMethod,
+          items: [{
+            name: selectedProduct.name,
+            quantity: quantity,
+            price: selectedProduct.price,
+            total: amount
+          }],
+          total: amount,
+          timestamp: Date.now()
+        };
 
-    // Update stock
-    await updateProduct(selectedProduct.id, {
-      quantity: selectedProduct.quantity - quantity
-    });
+        // Record sale and update stock in a transaction-like manner
+        const saleId = await addSale(saleData);
+        
+        await updateProduct(selectedProduct.id, {
+          quantity: selectedProduct.quantity - quantity
+        });
 
-    // Track analytics
-    analytics.saleCompleted(amount, paymentMethod, 1);
+        // Track analytics
+        analytics.saleCompleted(amount, paymentMethod, 1);
 
-    // Store last sale for invoice generation
-    setLastSale({ ...saleData, id: saleId });
+        // Store last sale for invoice generation
+        setLastSale({ ...saleData, id: saleId });
 
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 5000);
-    
-    // Reset form
-    setSelectedProduct(null);
-    setSelectedCustomer(null);
-    setQuantity(1);
-    setCustomAmount('');
-    loadData();
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 5000);
+        
+        // Reset form
+        setSelectedProduct(null);
+        setSelectedCustomer(null);
+        setQuantity(1);
+        setCustomAmount('');
+        
+        // Reload data to reflect changes
+        await loadData();
+        
+        logger.log('Sale completed successfully:', { saleId, amount, product: selectedProduct.name });
+      }, 'Processing sale...');
+    } catch (error) {
+      logger.error('Sale failed:', error);
+      alert(error.message || 'Failed to process sale. Please try again.');
+    }
   };
 
   const handleGenerateInvoice = async () => {
@@ -93,18 +137,24 @@ export default function Sales() {
         analytics.dataExported('pdf', 'invoice_quick');
         alert('Invoice generated successfully!');
       } else {
-        alert('Failed to generate invoice');
+        throw new Error('Invoice generation failed');
       }
     } catch (error) {
-      console.error('Error generating invoice:', error);
-      alert('Failed to generate invoice');
+      logger.error('Error generating invoice:', error);
+      alert('Failed to generate invoice. Please try again.');
+    } finally {
+      setGeneratingInvoice(false);
     }
-    setGeneratingInvoice(false);
   };
 
+  if (loadingData) {
+    return <InlineLoading message="Loading sales data..." />;
+  }
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Record Sale</h2>
+    <LoadingOverlay isVisible={isLoading} message="Processing sale...">
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold">Record Sale</h2>
 
       {showSuccess && (
         <div className="bg-green-100 border-2 border-green-500 text-green-800 p-4 rounded-lg">
@@ -239,6 +289,7 @@ export default function Sales() {
           </>
         )}
       </form>
-    </div>
+      </div>
+    </LoadingOverlay>
   );
 }
