@@ -4,6 +4,7 @@ import { syncData } from '../utils/sync';
 import { format } from 'date-fns';
 import { Icon } from '../components/Icons';
 import { TutorialTrigger } from '../components/Tutorial';
+import { analytics } from '../utils/analytics';
 import { 
   downloadDataAsJSON, 
   exportAsCSV, 
@@ -20,6 +21,7 @@ export default function Settings({ onLogout }) {
 
   useEffect(() => {
     loadUser();
+    analytics.pageViewed('settings');
   }, []);
 
   const loadUser = async () => {
@@ -40,6 +42,9 @@ export default function Settings({ onLogout }) {
     setExportMessage('');
     try {
       const success = await downloadDataAsJSON();
+      if (success) {
+        analytics.dataExported('json', 'full_backup');
+      }
       setExportMessage(success ? 'Data exported successfully!' : 'Export failed');
     } catch (error) {
       setExportMessage('Export failed: ' + error.message);
@@ -52,6 +57,9 @@ export default function Settings({ onLogout }) {
     setExportMessage('');
     try {
       const success = await exportAsCSV(dataType);
+      if (success) {
+        analytics.dataExported('csv', dataType);
+      }
       setExportMessage(success ? `${dataType} exported successfully!` : 'Export failed');
     } catch (error) {
       setExportMessage('Export failed: ' + error.message);
@@ -62,6 +70,7 @@ export default function Settings({ onLogout }) {
   const handleShareSummary = async () => {
     try {
       const success = await shareData('summary');
+      analytics.businessSummaryShared();
       if (!success) {
         // Fallback: generate and show summary
         const summary = await generateBusinessSummary();

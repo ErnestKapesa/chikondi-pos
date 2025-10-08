@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from '../components/Icons';
 import { PageHeader } from '../components/Typography';
+import { analytics } from '../utils/analytics';
 import { 
   getAllCustomers, 
   searchCustomers, 
@@ -34,6 +35,7 @@ export default function Customers() {
   useEffect(() => {
     loadCustomers();
     loadStats();
+    analytics.pageViewed('customers');
   }, []);
 
   useEffect(() => {
@@ -90,6 +92,7 @@ export default function Customers() {
     e.preventDefault();
     try {
       await addCustomer(formData);
+      analytics.customerAdded();
       setShowAddForm(false);
       resetForm();
       loadCustomers();
@@ -104,6 +107,7 @@ export default function Customers() {
     e.preventDefault();
     try {
       await updateCustomer(editingCustomer.id, formData);
+      analytics.customerEdited();
       setEditingCustomer(null);
       resetForm();
       loadCustomers();

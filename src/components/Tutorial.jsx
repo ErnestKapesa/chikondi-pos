@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './Icons';
 import { BrandLogo } from './Typography';
+import { analytics } from '../utils/analytics';
 
 const TUTORIAL_STEPS = [
   {
@@ -88,6 +89,7 @@ export default function Tutorial({ onComplete }) {
     const hasSeenTutorial = localStorage.getItem('chikondi-tutorial-completed');
     if (!hasSeenTutorial) {
       setIsVisible(true);
+      analytics.tutorialStarted();
     }
   }, []);
 
@@ -123,10 +125,14 @@ export default function Tutorial({ onComplete }) {
   };
 
   const skipTutorial = () => {
+    analytics.tutorialSkipped(currentStep);
     completeTutorial();
   };
 
   const completeTutorial = () => {
+    if (currentStep === TUTORIAL_STEPS.length - 1) {
+      analytics.tutorialCompleted();
+    }
     localStorage.setItem('chikondi-tutorial-completed', 'true');
     setIsVisible(false);
     if (onComplete) onComplete();

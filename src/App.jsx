@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
@@ -59,6 +60,9 @@ function App() {
         
         {/* Tutorial - shows automatically for new users */}
         {isAuthenticated && <Tutorial />}
+        
+        {/* Vercel Analytics */}
+        <Analytics />
       </BrowserRouter>
     </CurrencyProvider>
   );
