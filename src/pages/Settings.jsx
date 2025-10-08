@@ -8,6 +8,7 @@ import { UpdateSettings } from '../components/UpdateNotification';
 import SecuritySettings from '../components/SecuritySettings';
 import { analytics } from '../utils/analytics';
 import { CURRENT_VERSION } from '../utils/appUpdates';
+import { safeLogout, debugAuthState } from '../utils/authFix';
 import { 
   requestNotificationPermission,
   getNotificationSettings,
@@ -126,8 +127,23 @@ export default function Settings({ onLogout }) {
 
   const handleLogout = async () => {
     if (confirm('Are you sure you want to logout?')) {
-      await logoutUser();
-      onLogout();
+      console.log('🚪 User confirmed logout');
+      
+      // Debug state before logout
+      await debugAuthState();
+      
+      // Use safe logout
+      const result = await safeLogout();
+      
+      if (result.success) {
+        console.log('✅ Safe logout completed');
+        onLogout();
+      } else {
+        console.error('❌ Safe logout failed:', result.error);
+        // Fallback to regular logout
+        await logoutUser();
+        onLogout();
+      }
     }
   };
 
@@ -304,6 +320,33 @@ export default function Settings({ onLogout }) {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="card">
+        <h3 className="font-bold text-lg mb-3">Debug & Troubleshooting</h3>
+        <div className="space-y-3">
+          <button
+            onClick={async () => {
+              const state = await debugAuthState();
+              alert(`Auth State Debug:\n\nHas User: ${state?.hasUser ? 'YES' : 'NO'}\nEver Setup: ${state?.everSetup ? 'YES' : 'NO'}\nShould Show: ${state?.shouldShowLogin ? 'LOGIN' : state?.shouldShowSetup ? 'SETUP' : 'UNKNOWN'}`);
+            }}
+            className="btn-secondary w-full text-sm py-2 px-4"
+          >
+            🔍 Debug Auth State
+          </button>
+          
+          <button
+            onClick={() => {
+              if (confirm('This will clear all localStorage flags and force a fresh start. Continue?')) {
+                localStorage.clear();
+                window.location.reload();
+              }
+            }}
+            className="btn-secondary w-full text-sm py-2 px-4 text-red-600"
+          >
+            🚨 Emergency Reset
+          </button>
         </div>
       </div>
 

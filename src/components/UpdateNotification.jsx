@@ -9,6 +9,12 @@ import {
   migrateUserData,
   getUpdateChangelog 
 } from '../utils/appUpdates';
+import { 
+  forceCompleteUpdate, 
+  isUpdateStuck, 
+  markUpdateStarted, 
+  clearUpdateProgress 
+} from '../utils/updateFix';
 import { analytics } from '../utils/analytics';
 
 export default function UpdateNotification() {
@@ -41,6 +47,8 @@ export default function UpdateNotification() {
     if (!updateInfo) return;
     
     setIsUpdating(true);
+    markUpdateStarted();
+    
     try {
       // Step 1: Show migration progress
       setCurrentStep(1);
@@ -53,7 +61,7 @@ export default function UpdateNotification() {
         updateInfo.toVersion
       );
       
-      if (!migrationResult.success) {
+      if (!migrationResult.success && !migrationResult.warning) {
         throw new Error(migrationResult.error);
       }
       
@@ -62,13 +70,15 @@ export default function UpdateNotification() {
       // Step 3: Complete update
       setCurrentStep(3);
       acceptUpdate(updateInfo.toVersion);
+      clearUpdateProgress();
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Step 4: Success
       setCurrentStep(4);
       analytics.trackEvent('update_completed_successfully', {
         from_version: updateInfo.fromVersion,
-        to_version: updateInfo.toVersion
+        to_version: updateInfo.toVersion,
+        had_warning: !!migrationResult.warning
       });
       
       setTimeout(() => {
@@ -79,14 +89,24 @@ export default function UpdateNotification() {
       
     } catch (error) {
       console.error('Error updating app:', error);
+      clearUpdateProgress();
       analytics.trackEvent('update_failed', {
         error: error.message,
         from_version: updateInfo.fromVersion,
         to_version: updateInfo.toVersion
       });
-      alert('Update failed. Your data is safe. Please try again later.');
-      setIsUpdating(false);
-      setCurrentStep(0);
+      
+      // Offer force complete option
+      const forceComplete = confirm(
+        'Update failed. Would you like to force complete the update? Your data will be safe.'
+      );
+      
+      if (forceComplete) {
+        forceCompleteUpdate();
+      } else {
+        setIsUpdating(false);
+        setCurrentStep(0);
+      }
     }
   };
 
@@ -134,6 +154,19 @@ export default function UpdateNotification() {
     ];
 
     const currentStepInfo = steps.find(s => s.id === currentStep) || steps[0];
+    
+    // Show skip button if stuck on step 3 for more than 15 seconds
+    const [showSkipButton, setShowSkipButton] = useState(false);
+    
+    useEffect(() => {
+      if (currentStep === 3) {
+        const timer = setTimeout(() => {
+          setShowSkipButton(true);
+        }, 15000); // 15 seconds
+        
+        return () => clearTimeout(timer);
+      }
+    }, [currentStep]);
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
@@ -188,6 +221,27 @@ export default function UpdateNotification() {
           <p className="text-xs text-gray-500">
             {currentStep === 4 ? 'Update completed successfully!' : 'Do not close this window...'}
           </p>
+          
+          {/* Skip button if update is stuck */}
+          {showSkipButton && currentStep === 3 && (
+            <div className="mt-4">
+              <p className="text-sm text-yellow-600 mb-2">Update taking longer than expected?</p>
+              <button
+                onClick={() => {
+                  setCurrentStep(4);
+                  acceptUpdate(updateInfo.toVersion);
+                  setTimeout(() => {
+                    setShowNotification(false);
+                    setIsUpdating(false);
+                    setCurrentStep(0);
+                  }, 2000);
+                }}
+                className="btn-secondary text-sm py-2 px-4"
+              >
+                Complete Update
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );

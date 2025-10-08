@@ -118,48 +118,76 @@ export async function migrateUserData(fromVersion, toVersion) {
   try {
     console.log(`Migrating user data from ${fromVersion} to ${toVersion}`);
     
-    // Version-specific migrations
-    if (fromVersion === '1.0.0' && toVersion >= '1.1.0') {
-      await migrateToV1_1_0();
-    }
+    // Add timeout to prevent hanging
+    const migrationPromise = (async () => {
+      // Version-specific migrations
+      if (fromVersion === '1.0.0' && toVersion >= '1.1.0') {
+        await migrateToV1_1_0();
+      }
+      
+      if (fromVersion <= '1.1.0' && toVersion >= '1.2.0') {
+        await migrateToV1_2_0();
+      }
+    })();
     
-    if (fromVersion <= '1.1.0' && toVersion >= '1.2.0') {
-      await migrateToV1_2_0();
-    }
+    // Race between migration and timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Migration timeout')), 10000); // 10 second timeout
+    });
+    
+    await Promise.race([migrationPromise, timeoutPromise]);
     
     return { success: true };
   } catch (error) {
     console.error('Error migrating user data:', error);
+    
+    // If migration fails, still allow the update to continue
+    // The app will work without the migration
+    if (error.message === 'Migration timeout') {
+      console.warn('Migration timed out, but update will continue');
+      return { success: true, warning: 'Migration timed out but update completed' };
+    }
+    
     return { success: false, error: error.message };
   }
 }
 
 // Migration to v1.1.0 (Customer Management)
 async function migrateToV1_1_0() {
-  // Ensure customer database is initialized
-  const { initCustomerDB } = await import('./customerDb');
-  await initCustomerDB();
-  
-  // Mark tutorial as not completed for new features
-  localStorage.removeItem('chikondi-tutorial-completed');
-  
-  console.log('✅ Migrated to v1.1.0: Customer Management ready');
+  try {
+    // Ensure customer database is initialized
+    const { initCustomerDB } = await import('./customerDb');
+    await initCustomerDB();
+    
+    // Mark tutorial as not completed for new features
+    localStorage.removeItem('chikondi-tutorial-completed');
+    
+    console.log('✅ Migrated to v1.1.0: Customer Management ready');
+  } catch (error) {
+    console.error('Migration to v1.1.0 failed:', error);
+    // Don't throw error, just log it - migration can continue
+  }
 }
 
 // Migration to v1.2.0 (Smart Invoices)
 async function migrateToV1_2_0() {
-  // Initialize invoice-related settings
-  const defaultBusinessInfo = {
-    phone: '+265 123 456 789',
-    email: 'business@example.com',
-    address: 'Your Business Address'
-  };
-  
-  if (!localStorage.getItem('chikondi-business-info')) {
-    localStorage.setItem('chikondi-business-info', JSON.stringify(defaultBusinessInfo));
+  try {
+    // Initialize invoice-related settings
+    const defaultBusinessInfo = {
+      phone: '+265 123 456 789',
+      email: 'business@example.com',
+      address: 'Your Business Address'
+    };
+    
+    if (!localStorage.getItem('chikondi-business-info')) {
+      localStorage.setItem('chikondi-business-info', JSON.stringify(defaultBusinessInfo));
+    }
+    
+    console.log('✅ Migrated to v1.2.0: Smart Invoices ready');
+  } catch (error) {
+    console.error('Migration to v1.2.0 failed:', error);
+    // Don't throw error, just log it - migration can continue
   }
-  
-  console.log('✅ Migrated to v1.2.0: Smart Invoices ready');
 }
 
 // Get update changelog

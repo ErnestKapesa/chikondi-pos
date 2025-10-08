@@ -9,6 +9,7 @@ import {
   clearLoginAttempts,
   SECURITY_CONFIG 
 } from '../utils/security';
+import { debugAuthState, autoFixAuth } from '../utils/authFix';
 
 export default function Login({ onLogin }) {
   const [pin, setPin] = useState('');
@@ -58,20 +59,44 @@ export default function Login({ onLogin }) {
   };
 
   const checkSetup = async () => {
-    const user = await getUser();
-    const everSetup = await hasUserEverBeenSetup();
-    
-    if (user) {
-      // User exists, show login
-      setExistingUser(user);
-      setIsSetup(false);
-    } else if (everSetup) {
-      // User logged out but was setup before, show login
-      setExistingUser(null);
-      setIsSetup(false);
-    } else {
-      // Truly new user, show setup
-      setExistingUser(null);
+    try {
+      // Debug current auth state
+      await debugAuthState();
+      
+      // Auto-fix any auth issues
+      const fixResult = await autoFixAuth();
+      if (fixResult.fixed) {
+        console.log('🔧 Auth issue auto-fixed:', fixResult.action);
+      }
+      
+      const user = await getUser();
+      const everSetup = await hasUserEverBeenSetup();
+      
+      console.log('🔍 Auth Check:', { 
+        hasUser: !!user, 
+        everSetup, 
+        userShopName: user?.shopName 
+      });
+      
+      if (user) {
+        // User exists, show login
+        console.log('✅ User exists - showing login');
+        setExistingUser(user);
+        setIsSetup(false);
+      } else if (everSetup) {
+        // User logged out but was setup before, show login
+        console.log('✅ User logged out - showing login (not setup)');
+        setExistingUser(null);
+        setIsSetup(false);
+      } else {
+        // Truly new user, show setup
+        console.log('✅ New user - showing setup');
+        setExistingUser(null);
+        setIsSetup(true);
+      }
+    } catch (error) {
+      console.error('Error in checkSetup:', error);
+      // Fallback to safe state
       setIsSetup(true);
     }
   };
