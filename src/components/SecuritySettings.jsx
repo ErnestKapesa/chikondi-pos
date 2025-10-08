@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './Icons';
-import { getUser, setUser } from '../utils/db';
+import { getUser, setUser } from '../utils/dbUnified';
 import { 
   generateSecurityAudit, 
   validatePinStrength, 

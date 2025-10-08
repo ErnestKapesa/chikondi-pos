@@ -1,5 +1,5 @@
 // Data Export & Backup Utilities for Chikondi POS
-import { getUser, getAllSales, getAllProducts, getAllExpenses } from './db';
+import { getUser, getAllSales, getAllProducts, getAllExpenses, getAllCustomers } from './dbUnified';
 
 // Export all data as JSON
 export async function exportAllData() {

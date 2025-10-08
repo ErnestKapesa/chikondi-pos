@@ -72,15 +72,20 @@ export async function safeLogout() {
     // Debug state before logout
     await debugAuthState();
     
+    // Get user data before logout to verify they exist
+    const user = await getUser();
+    if (!user) {
+      console.warn('⚠️ No user found to logout');
+      return { success: true, message: 'No user to logout' };
+    }
+    
+    console.log('🔍 User found, proceeding with logout:', { shopName: user.shopName });
+    
     // Perform logout
     await logoutUser();
     
-    // Verify setup flag is preserved
-    const everSetup = await hasUserEverBeenSetup();
-    if (!everSetup) {
-      console.warn('⚠️ Setup flag was lost during logout - restoring it');
-      await markUserAsSetup();
-    }
+    // Ensure setup flag is preserved (user was setup before)
+    await markUserAsSetup();
     
     // Debug state after logout
     await debugAuthState();

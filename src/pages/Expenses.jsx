@@ -1,18 +1,25 @@
 import { useState, useEffect } from 'react';
-import { addExpense, getAllExpenses } from '../utils/db';
+import { addExpense, getAllExpenses } from '../utils/dbUnified';
 import { format } from 'date-fns';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Icon } from '../components/Icons';
+import { LoadingSpinner, InlineLoading } from '../components/Loading';
+import { useErrorHandler } from '../components/ErrorBoundary';
+import { analytics } from '../utils/analytics';
 
 export default function Expenses() {
   const { formatAmount, symbol } = useCurrency();
   const [expenses, setExpenses] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
     category: 'stock'
   });
+  
+  const { handleError } = useErrorHandler();
 
   const categories = [
     { value: 'stock', label: 'Stock Purchase' },
@@ -24,26 +31,73 @@ export default function Expenses() {
 
   useEffect(() => {
     loadExpenses();
+    analytics.pageViewed('expenses');
   }, []);
 
   const loadExpenses = async () => {
-    const allExpenses = await getAllExpenses();
-    setExpenses(allExpenses.reverse());
+    try {
+      setLoading(true);
+      const allExpenses = await getAllExpenses();
+      setExpenses(allExpenses.reverse()); // Show newest first
+      console.log(`✅ Loaded ${allExpenses.length} expenses`);
+    } catch (error) {
+      console.error('❌ Error loading expenses:', error);
+      handleError(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    await addExpense({
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      category: formData.category
-    });
+    // Validate form data
+    if (!formData.description.trim()) {
+      alert('Expense description is required');
+      return;
+    }
+    
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      alert('Valid expense amount is required');
+      return;
+    }
 
-    setFormData({ description: '', amount: '', category: 'stock' });
-    setShowForm(false);
-    loadExpenses();
+    setSubmitting(true);
+    try {
+      const expenseData = {
+        description: formData.description.trim(),
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        timestamp: Date.now()
+      };
+
+      console.log('🔄 Adding new expense:', expenseData);
+      const expenseId = await addExpense(expenseData);
+      console.log('✅ Expense added successfully with ID:', expenseId);
+      
+      analytics.trackEvent('expense_added', {
+        category: formData.category,
+        amount: parseFloat(formData.amount)
+      });
+      
+      alert('Expense added successfully!');
+
+      // Reset form and reload data
+      setFormData({ description: '', amount: '', category: 'stock' });
+      setShowForm(false);
+      await loadExpenses();
+      
+    } catch (error) {
+      console.error('❌ Error adding expense:', error);
+      alert(`Failed to add expense: ${error.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return <InlineLoading message="Loading expenses..." />;
+  }
 
   return (
     <div className="space-y-4">
@@ -52,6 +106,7 @@ export default function Expenses() {
         <button
           onClick={() => setShowForm(!showForm)}
           className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors"
+          disabled={submitting}
         >
           <Icon name={showForm ? 'close' : 'add'} size={16} />
           {showForm ? 'Cancel' : 'Add Expense'}
@@ -91,9 +146,22 @@ export default function Expenses() {
             ))}
           </select>
           
-          <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
-            <Icon name="add" size={20} />
-            Add Expense
+          <button 
+            type="submit" 
+            className="btn-primary w-full flex items-center justify-center gap-2"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <LoadingSpinner size="sm" message="" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Icon name="add" size={20} />
+                Add Expense
+              </>
+            )}
           </button>
         </form>
       )}

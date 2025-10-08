@@ -1,49 +1,102 @@
 import { useState, useEffect } from 'react';
-import { getAllProducts, addProduct, updateProduct, deleteProduct } from '../utils/db';
+import { getAllProducts, addProduct, updateProduct, deleteProduct } from '../utils/dbUnified';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Icon } from '../components/Icons';
+import { LoadingSpinner, InlineLoading } from '../components/Loading';
+import { useErrorHandler } from '../components/ErrorBoundary';
+import { analytics } from '../utils/analytics';
 
 export default function Inventory() {
   const { formatAmount, symbol } = useCurrency();
   const [products, setProducts] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     quantity: '',
     lowStockAlert: 5
   });
+  
+  const { handleError } = useErrorHandler();
 
   useEffect(() => {
     loadProducts();
+    analytics.pageViewed('inventory');
   }, []);
 
   const loadProducts = async () => {
-    const allProducts = await getAllProducts();
-    setProducts(allProducts);
+    try {
+      setLoading(true);
+      const allProducts = await getAllProducts();
+      setProducts(allProducts);
+      console.log(`✅ Loaded ${allProducts.length} products`);
+    } catch (error) {
+      console.error('❌ Error loading products:', error);
+      handleError(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const productData = {
-      name: formData.name,
-      price: parseFloat(formData.price),
-      quantity: parseInt(formData.quantity),
-      lowStockAlert: parseInt(formData.lowStockAlert)
-    };
-
-    if (editingProduct) {
-      await updateProduct(editingProduct.id, productData);
-    } else {
-      await addProduct(productData);
+    
+    // Validate form data
+    if (!formData.name.trim()) {
+      alert('Product name is required');
+      return;
+    }
+    
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      alert('Valid price is required');
+      return;
+    }
+    
+    if (!formData.quantity || parseInt(formData.quantity) < 0) {
+      alert('Valid quantity is required');
+      return;
     }
 
-    setShowForm(false);
-    setEditingProduct(null);
-    setFormData({ name: '', price: '', quantity: '', lowStockAlert: 5 });
-    loadProducts();
+    setSubmitting(true);
+    try {
+      const productData = {
+        name: formData.name.trim(),
+        price: parseFloat(formData.price),
+        quantity: parseInt(formData.quantity),
+        lowStockAlert: parseInt(formData.lowStockAlert) || 5,
+        category: 'general', // Default category
+        createdAt: Date.now()
+      };
+
+      if (editingProduct) {
+        console.log('🔄 Updating product:', editingProduct.id, productData);
+        await updateProduct(editingProduct.id, productData);
+        console.log('✅ Product updated successfully');
+        analytics.productEdited();
+        alert('Product updated successfully!');
+      } else {
+        console.log('🔄 Adding new product:', productData);
+        const productId = await addProduct(productData);
+        console.log('✅ Product added successfully with ID:', productId);
+        analytics.productAdded();
+        alert('Product added successfully!');
+      }
+
+      // Reset form and reload data
+      setShowForm(false);
+      setEditingProduct(null);
+      setFormData({ name: '', price: '', quantity: '', lowStockAlert: 5 });
+      await loadProducts();
+      
+    } catch (error) {
+      console.error('❌ Error saving product:', error);
+      alert(`Failed to ${editingProduct ? 'update' : 'add'} product: ${error.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleEdit = (product) => {
@@ -57,12 +110,24 @@ export default function Inventory() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (confirm('Delete this product?')) {
-      await deleteProduct(id);
-      loadProducts();
+  const handleDelete = async (id, productName) => {
+    if (confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
+      try {
+        console.log('🔄 Deleting product:', id);
+        await deleteProduct(id);
+        console.log('✅ Product deleted successfully');
+        alert('Product deleted successfully!');
+        await loadProducts();
+      } catch (error) {
+        console.error('❌ Error deleting product:', error);
+        alert(`Failed to delete product: ${error.message}`);
+      }
     }
   };
+
+  if (loading) {
+    return <InlineLoading message="Loading inventory..." />;
+  }
 
   return (
     <div className="space-y-4">
@@ -71,6 +136,7 @@ export default function Inventory() {
         <button
           onClick={() => setShowForm(!showForm)}
           className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors"
+          disabled={submitting}
         >
           <Icon name={showForm ? 'close' : 'add'} size={16} />
           {showForm ? 'Cancel' : 'Add Product'}
@@ -117,9 +183,22 @@ export default function Inventory() {
             className="input-field"
           />
           
-          <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
-            <Icon name={editingProduct ? 'save' : 'add'} size={20} />
-            {editingProduct ? 'Update Product' : 'Add Product'}
+          <button 
+            type="submit" 
+            className="btn-primary w-full flex items-center justify-center gap-2"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <LoadingSpinner size="sm" message="" />
+                {editingProduct ? 'Updating...' : 'Adding...'}
+              </>
+            ) : (
+              <>
+                <Icon name={editingProduct ? 'save' : 'add'} size={20} />
+                {editingProduct ? 'Update Product' : 'Add Product'}
+              </>
+            )}
           </button>
         </form>
       )}
@@ -155,9 +234,10 @@ export default function Inventory() {
                   <Icon name="edit" size={20} />
                 </button>
                 <button
-                  onClick={() => handleDelete(product.id)}
+                  onClick={() => handleDelete(product.id, product.name)}
                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   title="Delete Product"
+                  disabled={submitting}
                 >
                   <Icon name="delete" size={20} />
                 </button>

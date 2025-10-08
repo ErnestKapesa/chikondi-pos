@@ -1,5 +1,5 @@
 // Simple Invoice Generator - Fallback for PDF issues
-import { getUser } from './db';
+import { getUser } from './dbUnified';
 
 // Generate simple HTML invoice for printing
 export function generateHTMLInvoice(invoiceData, customer = null) {

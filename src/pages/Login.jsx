@@ -601,22 +601,20 @@ export default function Login({ onLogin }) {
             </div>
             
             {/* Emergency Reset Option */}
-            <div className="text-center">
+            <div className="text-center space-y-1">
               <button 
                 type="button"
                 onClick={async () => {
-                  if (confirm(
-                    'EMERGENCY RESET: This will delete all your data and start fresh. ' +
-                    'Only use this if you cannot log in. Are you absolutely sure?'
-                  )) {
-                    const { emergencyReset } = await import('../utils/authRepair');
-                    emergencyReset();
-                  }
+                  const { userEmergencyReset } = await import('../utils/emergencyFix');
+                  await userEmergencyReset();
                 }}
-                className="text-red-600 text-xs hover:underline"
+                className="text-red-600 text-xs hover:underline block mx-auto"
               >
                 🚨 Emergency Reset (if login is broken)
               </button>
+              <p className="text-xs text-gray-500">
+                Use only if you can't log in due to technical issues
+              </p>
             </div>
           </div>
         </form>

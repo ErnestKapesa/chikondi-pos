@@ -1,5 +1,5 @@
 // App Update Management System for Chikondi POS
-import { getUser } from './db';
+import { getUser } from './dbUnified';
 import { analytics } from './analytics';
 
 // App version management

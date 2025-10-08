@@ -14,6 +14,7 @@ import { PageLoading, LoadingSpinner } from './components/Loading';
 import { logger } from './utils/logger';
 import { autoMigrate } from './utils/dbMigration';
 import { autoFixDatabaseIssues } from './utils/dbVersionFix';
+import { autoFixVersionConflict } from './utils/emergencyFix';
 
 // Lazy load heavy components for better performance
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -34,7 +35,20 @@ function App() {
 
   const checkAuth = async () => {
     try {
-      // First, fix any database version conflicts
+      // First, auto-fix any version conflicts
+      const versionFix = await autoFixVersionConflict();
+      if (!versionFix.success && versionFix.action === 'manual_intervention_needed') {
+        throw new Error(`Database version conflict: ${versionFix.error}`);
+      }
+      
+      // If version conflict was fixed, reload the page
+      if (versionFix.action === 'version_conflict_fixed') {
+        logger.log('Version conflict fixed, reloading...');
+        window.location.reload();
+        return;
+      }
+      
+      // Then fix any other database issues
       const dbFix = await autoFixDatabaseIssues();
       if (!dbFix.success && dbFix.critical) {
         throw new Error(`Critical database issue: ${dbFix.message}`);

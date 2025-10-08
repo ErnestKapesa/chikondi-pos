@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Icon } from '../components/Icons';
 import { PageHeader } from '../components/Typography';
 import { analytics } from '../utils/analytics';
-import { getAllSales } from '../utils/db';
-import { getAllCustomers } from '../utils/customerDb';
+import { getAllSales, getAllCustomers } from '../utils/dbUnified';
 import { 
   generateInvoicePDF, 
   createInvoiceFromSale, 

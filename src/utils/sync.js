@@ -1,4 +1,4 @@
-import { getUnsyncedData, markAsSynced } from './db';
+import { getUnsyncedData, markAsSynced } from './dbUnified';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 

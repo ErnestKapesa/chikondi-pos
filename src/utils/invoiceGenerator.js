@@ -1,6 +1,6 @@
 // Smart Invoice Generator for Chikondi POS
 import jsPDF from 'jspdf';
-import { getUser } from './db';
+import { getUser } from './dbUnified';
 
 // Invoice templates and configurations
 const INVOICE_TEMPLATES = {

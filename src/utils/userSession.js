@@ -1,5 +1,5 @@
 // User Session Management for Chikondi POS
-import { getUser, setUser, logoutUser, hasUserEverBeenSetup, markUserAsSetup } from './db';
+import { getUser, setUser, logoutUser, hasUserEverBeenSetup, markUserAsSetup } from './dbUnified';
 
 // Session states
 export const SESSION_STATES = {

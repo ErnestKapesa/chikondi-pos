@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSalesByDateRange, getExpensesByDateRange, getAllProducts } from '../utils/db';
+import { getSalesByDateRange, getExpensesByDateRange, getAllProducts } from '../utils/dbUnified';
 import { format, startOfDay, endOfDay, subDays, startOfWeek, startOfMonth } from 'date-fns';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { Icon } from '../components/Icons';

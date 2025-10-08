@@ -42,6 +42,14 @@ export async function diagnoseAuthIssue() {
     }
     
     if (!user && everSetup) {
+      // This is the normal logged-out state
+      // But we need to verify the setup flag is legitimate
+      console.log('🔍 Verifying logged-out state...');
+      
+      // Check if there's any evidence this user actually existed
+      // For now, we'll trust the setup flag, but in the future we could
+      // check for sales data, customer data, etc. as evidence
+      
       return {
         issue: 'logged_out_user',
         message: 'User is logged out but was setup before, should show login',

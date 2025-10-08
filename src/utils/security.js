@@ -1,5 +1,5 @@
 // Enhanced Security System for Chikondi POS
-import { getUser, setUser } from './db';
+import { getUser, setUser } from './dbUnified';
 import { analytics } from './analytics';
 
 // Security configuration
