@@ -46,6 +46,15 @@ const TUTORIAL_STEPS = [
     badge: 'NEW!'
   },
   {
+    id: 'invoices',
+    title: 'Smart Invoices',
+    content: 'Generate professional PDF invoices for your sales. Works completely offline!',
+    target: '[href="/invoices"]',
+    position: 'top',
+    action: 'Create Invoices',
+    badge: 'NEW!'
+  },
+  {
     id: 'reports',
     title: 'Business Insights',
     content: 'View sales reports, track performance, and make data-driven decisions for your business.',

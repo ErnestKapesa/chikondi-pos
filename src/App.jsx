@@ -9,6 +9,7 @@ import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Customers from './pages/Customers';
+import Invoices from './pages/Invoices';
 import Layout from './components/Layout';
 import Tutorial from './components/Tutorial';
 import { CurrencyProvider } from './contexts/CurrencyContext';
@@ -52,7 +53,7 @@ function App() {
             <Route path="sales" element={<Sales />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="customers" element={<Customers />} />
-            <Route path="expenses" element={<Expenses />} />
+            <Route path="invoices" element={<Invoices />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings onLogout={() => setIsAuthenticated(false)} />} />
           </Route>
