@@ -11,6 +11,7 @@ import {
 } from '../utils/security';
 import { debugAuthState, autoFixAuth } from '../utils/authFix';
 import { autoRepairAuth, testPinMatch } from '../utils/authRepair';
+import { enhancedLogin, verifyUserAccount } from '../utils/userVerification';
 
 export default function Login({ onLogin }) {
   const [pin, setPin] = useState('');
@@ -65,6 +66,10 @@ export default function Login({ onLogin }) {
       const repairResult = await autoRepairAuth();
       console.log('🔧 Auth repair result:', repairResult);
       
+      // Use enhanced user verification
+      const verification = await verifyUserAccount();
+      console.log('🔍 User verification result:', verification);
+      
       // Debug current auth state
       await debugAuthState();
       
@@ -74,29 +79,31 @@ export default function Login({ onLogin }) {
         console.log('🔧 Auth issue auto-fixed:', fixResult.action);
       }
       
-      const user = await getUser();
-      const everSetup = await hasUserEverBeenSetup();
-      
-      console.log('🔍 Auth Check:', { 
-        hasUser: !!user, 
-        everSetup, 
-        userShopName: user?.shopName,
-        userPin: user?.pin ? 'EXISTS' : 'MISSING'
-      });
-      
-      if (user) {
-        // User exists, show login
-        console.log('✅ User exists - showing login');
-        setExistingUser(user);
+      // Handle verification results
+      if (verification.valid && verification.user) {
+        // Valid user exists, show login
+        console.log('✅ Valid user exists - showing login');
+        setExistingUser(verification.user);
         setIsSetup(false);
-      } else if (everSetup) {
+      } else if (verification.reason === 'user_logged_out') {
         // User logged out but was setup before, show login
         console.log('✅ User logged out - showing login (not setup)');
         setExistingUser(null);
         setIsSetup(false);
-      } else {
+      } else if (verification.reason === 'new_user') {
         // Truly new user, show setup
         console.log('✅ New user - showing setup');
+        setExistingUser(null);
+        setIsSetup(true);
+      } else if (verification.reason === 'incomplete_user_data') {
+        // User data is corrupted, show login but with warning
+        console.log('⚠️ Incomplete user data - showing login with repair option');
+        setExistingUser(verification.user);
+        setIsSetup(false);
+        setError('Your account data may be incomplete. If you have trouble logging in, use the emergency reset option.');
+      } else {
+        // Unknown state, default to setup
+        console.log('❓ Unknown state - defaulting to setup');
         setExistingUser(null);
         setIsSetup(true);
       }
@@ -251,36 +258,33 @@ export default function Login({ onLogin }) {
     }
 
     try {
-      // Test PIN matching with detailed logging
-      const pinTest = await testPinMatch(pin);
-      console.log('🔍 PIN test result:', pinTest);
+      // Use enhanced login system
+      console.log('🔐 Attempting enhanced login...');
+      const loginResult = await enhancedLogin(pin);
+      console.log('🔍 Enhanced login result:', loginResult);
       
-      const user = await getUser();
-      
-      if (pinTest.match) {
+      if (loginResult.success) {
         // Successful login
-        console.log('✅ Login successful');
+        console.log('✅ Enhanced login successful');
         trackLoginAttempt(true, pin);
         clearLoginAttempts();
         onLogin();
       } else {
-        // Failed login - provide detailed error info
-        console.log('❌ Login failed:', pinTest.reason);
+        // Failed login - handle different scenarios
+        console.log('❌ Enhanced login failed:', loginResult.reason);
         trackLoginAttempt(false, pin);
         
-        // Handle different failure reasons
-        if (pinTest.reason === 'no_user') {
-          const everSetup = await hasUserEverBeenSetup();
-          if (everSetup) {
-            setError('Your account data seems to be missing. Please try the emergency reset option below.');
-          } else {
-            setError('No account found. Please set up your account first.');
-            setIsSetup(true);
-          }
-        } else if (pinTest.reason === 'no_pin_stored') {
-          setError('Your PIN is missing from your account. Please use the emergency reset option below.');
-        } else {
-          // Regular PIN mismatch
+        // Handle specific failure reasons
+        if (loginResult.showSetup) {
+          setError(loginResult.message);
+          setIsSetup(true);
+          return;
+        }
+        
+        if (loginResult.showEmergencyReset) {
+          setError(loginResult.message + ' Use the emergency reset option below.');
+        } else if (loginResult.reason === 'incorrect_pin') {
+          // Regular PIN mismatch - show attempts remaining
           const attempts = JSON.parse(localStorage.getItem('chikondi-login-attempts') || '[]');
           const recentFailedAttempts = attempts.filter(a => 
             !a.success && (Date.now() - a.timestamp) < 60 * 60 * 1000
@@ -293,7 +297,10 @@ export default function Login({ onLogin }) {
           } else {
             setError(`Incorrect PIN. ${remainingAttempts} attempts remaining.`);
           }
+        } else {
+          setError(loginResult.message || 'Login failed. Please try again.');
         }
+        
         setPin('');
       }
     } catch (error) {

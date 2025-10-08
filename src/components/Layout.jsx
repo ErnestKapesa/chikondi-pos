@@ -23,6 +23,8 @@ export default function Layout() {
   const navItems = [
     { path: '/', icon: 'home', label: 'Home' },
     { path: '/sales', icon: 'sales', label: 'Sales' },
+    { path: '/inventory', icon: 'inventory', label: 'Stock' },
+    { path: '/expenses', icon: 'expenses', label: 'Expenses' },
     { path: '/customers', icon: 'customers', label: 'Customers' },
     { path: '/invoices', icon: 'receipt', label: 'Invoices' },
     { path: '/reports', icon: 'reports', label: 'Reports' }

@@ -146,6 +146,16 @@ function App() {
                   } 
                 />
                 <Route 
+                  path="expenses" 
+                  element={
+                    <PageErrorBoundary pageName="Expenses">
+                      <Suspense fallback={<LoadingSpinner message="Loading expenses..." />}>
+                        <Expenses />
+                      </Suspense>
+                    </PageErrorBoundary>
+                  } 
+                />
+                <Route 
                   path="customers" 
                   element={
                     <PageErrorBoundary pageName="Customers">
