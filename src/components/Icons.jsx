@@ -152,6 +152,10 @@ export const Icons = {
   cancel: X,
   search: Search,
   filter: Filter,
+  download: Download,
+  upload: Upload,
+  view: Eye,
+  hide: EyeOff,
   
   // Communication
   phone: Phone,

@@ -13,6 +13,7 @@ import { ErrorBoundary, PageErrorBoundary } from './components/ErrorBoundary';
 import { PageLoading, LoadingSpinner } from './components/Loading';
 import { logger } from './utils/logger';
 import { autoMigrate } from './utils/dbMigration';
+import { autoFixDatabaseIssues } from './utils/dbVersionFix';
 
 // Lazy load heavy components for better performance
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -33,13 +34,19 @@ function App() {
 
   const checkAuth = async () => {
     try {
-      // First, ensure database is ready
+      // First, fix any database version conflicts
+      const dbFix = await autoFixDatabaseIssues();
+      if (!dbFix.success && dbFix.critical) {
+        throw new Error(`Critical database issue: ${dbFix.message}`);
+      }
+      
+      // Then ensure database is ready
       const migrationResult = await autoMigrate();
       if (!migrationResult.success) {
         throw new Error(`Database initialization failed: ${migrationResult.message}`);
       }
       
-      // Then check authentication
+      // Finally check authentication
       const user = await getUser();
       setIsAuthenticated(!!user);
       logger.log('Authentication check completed:', { hasUser: !!user });

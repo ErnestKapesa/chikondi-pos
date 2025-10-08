@@ -2,7 +2,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'chikondi-pos';
-const DB_VERSION = 3; // Increment to fix any existing corruption
+const DB_VERSION = 4; // Fix version conflict - increment to latest
 
 // Single database instance
 let dbInstance = null;
@@ -18,53 +18,58 @@ export async function initDB() {
       upgrade(db, oldVersion, newVersion, transaction) {
         console.log(`🔄 Upgrading database from version ${oldVersion} to ${newVersion}`);
         
-        // Create user store
-        if (!db.objectStoreNames.contains('user')) {
-          db.createObjectStore('user', { keyPath: 'id' });
-          console.log('✅ Created user store');
-        }
+        try {
+          // Create user store
+          if (!db.objectStoreNames.contains('user')) {
+            db.createObjectStore('user', { keyPath: 'id' });
+            console.log('✅ Created user store');
+          }
 
-        // Create sales store
-        if (!db.objectStoreNames.contains('sales')) {
-          const salesStore = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
-          salesStore.createIndex('timestamp', 'timestamp');
-          salesStore.createIndex('synced', 'synced');
-          salesStore.createIndex('customerId', 'customerId');
-          console.log('✅ Created sales store');
-        }
+          // Create sales store
+          if (!db.objectStoreNames.contains('sales')) {
+            const salesStore = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
+            salesStore.createIndex('timestamp', 'timestamp');
+            salesStore.createIndex('synced', 'synced');
+            salesStore.createIndex('customerId', 'customerId');
+            console.log('✅ Created sales store');
+          }
 
-        // Create inventory store
-        if (!db.objectStoreNames.contains('inventory')) {
-          const inventoryStore = db.createObjectStore('inventory', { keyPath: 'id', autoIncrement: true });
-          inventoryStore.createIndex('name', 'name');
-          inventoryStore.createIndex('synced', 'synced');
-          inventoryStore.createIndex('category', 'category');
-          console.log('✅ Created inventory store');
-        }
+          // Create inventory store
+          if (!db.objectStoreNames.contains('inventory')) {
+            const inventoryStore = db.createObjectStore('inventory', { keyPath: 'id', autoIncrement: true });
+            inventoryStore.createIndex('name', 'name');
+            inventoryStore.createIndex('synced', 'synced');
+            inventoryStore.createIndex('category', 'category');
+            console.log('✅ Created inventory store');
+          }
 
-        // Create expenses store
-        if (!db.objectStoreNames.contains('expenses')) {
-          const expensesStore = db.createObjectStore('expenses', { keyPath: 'id', autoIncrement: true });
-          expensesStore.createIndex('timestamp', 'timestamp');
-          expensesStore.createIndex('synced', 'synced');
-          expensesStore.createIndex('category', 'category');
-          console.log('✅ Created expenses store');
-        }
+          // Create expenses store
+          if (!db.objectStoreNames.contains('expenses')) {
+            const expensesStore = db.createObjectStore('expenses', { keyPath: 'id', autoIncrement: true });
+            expensesStore.createIndex('timestamp', 'timestamp');
+            expensesStore.createIndex('synced', 'synced');
+            expensesStore.createIndex('category', 'category');
+            console.log('✅ Created expenses store');
+          }
 
-        // Create customers store
-        if (!db.objectStoreNames.contains('customers')) {
-          const customersStore = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
-          customersStore.createIndex('name', 'name');
-          customersStore.createIndex('phone', 'phone');
-          customersStore.createIndex('email', 'email');
-          customersStore.createIndex('createdAt', 'createdAt');
-          customersStore.createIndex('lastVisit', 'lastVisit');
-          customersStore.createIndex('totalPurchases', 'totalPurchases');
-          customersStore.createIndex('synced', 'synced');
-          console.log('✅ Created customers store');
-        }
+          // Create customers store
+          if (!db.objectStoreNames.contains('customers')) {
+            const customersStore = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
+            customersStore.createIndex('name', 'name');
+            customersStore.createIndex('phone', 'phone');
+            customersStore.createIndex('email', 'email');
+            customersStore.createIndex('createdAt', 'createdAt');
+            customersStore.createIndex('lastVisit', 'lastVisit');
+            customersStore.createIndex('totalPurchases', 'totalPurchases');
+            customersStore.createIndex('synced', 'synced');
+            console.log('✅ Created customers store');
+          }
 
-        console.log('✅ Database upgrade completed successfully');
+          console.log('✅ Database upgrade completed successfully');
+        } catch (error) {
+          console.error('❌ Database upgrade failed:', error);
+          // Don't throw - let the app continue with existing stores
+        }
       },
       
       blocked() {

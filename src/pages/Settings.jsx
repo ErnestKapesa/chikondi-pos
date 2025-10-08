@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUser, logoutUser } from '../utils/db';
+import { getUser, logoutUser, setUser } from '../utils/dbUnified';
 import { syncData } from '../utils/sync';
 import { format } from 'date-fns';
 import { Icon } from '../components/Icons';
@@ -9,6 +9,8 @@ import SecuritySettings from '../components/SecuritySettings';
 import { analytics } from '../utils/analytics';
 import { CURRENT_VERSION } from '../utils/appUpdates';
 import { safeLogout, debugAuthState } from '../utils/authFix';
+import { CURRENCIES, POPULAR_CURRENCIES, DEFAULT_CURRENCY } from '../utils/currencies';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { 
   requestNotificationPermission,
   getNotificationSettings,
@@ -23,16 +25,21 @@ import {
 } from '../utils/dataExport';
 
 export default function Settings({ onLogout }) {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
+  const [changingCurrency, setChangingCurrency] = useState(false);
+  const [showCurrencyForm, setShowCurrencyForm] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState(DEFAULT_CURRENCY);
   const [notificationSettings, setNotificationSettingsState] = useState({
     enabled: false,
     updateNotifications: true,
     featureAnnouncements: true
   });
+  
+  const { formatAmount, symbol, currencyData } = useCurrency();
 
   useEffect(() => {
     loadUser();
@@ -46,8 +53,15 @@ export default function Settings({ onLogout }) {
   };
 
   const loadUser = async () => {
-    const userData = await getUser();
-    setUser(userData);
+    try {
+      const userData = await getUser();
+      setUserState(userData);
+      if (userData?.currency) {
+        setSelectedCurrency(userData.currency);
+      }
+    } catch (error) {
+      console.error('Error loading user:', error);
+    }
   };
 
   const handleSync = async () => {
@@ -125,6 +139,35 @@ export default function Settings({ onLogout }) {
     setNotificationSettingsState(newSettings);
   };
 
+  const handleCurrencyChange = async (newCurrency) => {
+    if (!user) return;
+    
+    setChangingCurrency(true);
+    try {
+      // Update user data with new currency
+      const updatedUser = {
+        ...user,
+        currency: newCurrency,
+        updatedAt: Date.now()
+      };
+      
+      await setUser(updatedUser);
+      setUserState(updatedUser);
+      setSelectedCurrency(newCurrency);
+      setShowCurrencyForm(false);
+      
+      // Reload the page to update currency context
+      alert('Currency updated successfully! The page will reload to apply changes.');
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Error updating currency:', error);
+      alert('Failed to update currency. Please try again.');
+    } finally {
+      setChangingCurrency(false);
+    }
+  };
+
   const handleLogout = async () => {
     if (confirm('Are you sure you want to logout?')) {
       console.log('🚪 User confirmed logout');
@@ -153,11 +196,109 @@ export default function Settings({ onLogout }) {
 
       {user && (
         <div className="card">
-          <h3 className="font-bold text-lg mb-2">Shop Information</h3>
-          <p className="text-gray-600">Shop Name: <span className="font-semibold">{user.shopName}</span></p>
-          <p className="text-sm text-gray-500 mt-1">
-            Created: {format(user.createdAt, 'MMM d, yyyy')}
-          </p>
+          <h3 className="font-bold text-lg mb-3">Shop Information</h3>
+          <div className="space-y-2">
+            <p className="text-gray-600">Shop Name: <span className="font-semibold">{user.shopName}</span></p>
+            <p className="text-gray-600">
+              Currency: <span className="font-semibold">{currencyData.name} ({symbol})</span>
+            </p>
+            <p className="text-sm text-gray-500">
+              Created: {format(user.createdAt, 'MMM d, yyyy')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {user && (
+        <div className="card">
+          <h3 className="font-bold text-lg mb-3">Currency Settings</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <h4 className="font-medium">Current Currency</h4>
+                <p className="text-sm text-gray-600">{currencyData.name} ({currencyData.code})</p>
+                <p className="text-xs text-gray-500">Symbol: {symbol}</p>
+              </div>
+              <button
+                onClick={() => setShowCurrencyForm(true)}
+                className="btn-secondary text-sm py-2 px-4"
+              >
+                Change Currency
+              </button>
+            </div>
+            
+            {showCurrencyForm && (
+              <div className="p-4 border border-gray-200 rounded-lg bg-white">
+                <h4 className="font-medium mb-3">Select New Currency</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Choose Currency</label>
+                    <select
+                      value={selectedCurrency}
+                      onChange={(e) => setSelectedCurrency(e.target.value)}
+                      className="input-field"
+                      disabled={changingCurrency}
+                    >
+                      <optgroup label="Popular Currencies">
+                        {POPULAR_CURRENCIES.map(code => {
+                          const curr = CURRENCIES.find(c => c.code === code);
+                          return (
+                            <option key={code} value={code}>
+                              {curr.symbol} - {curr.name} ({code})
+                            </option>
+                          );
+                        })}
+                      </optgroup>
+                      <optgroup label="All Currencies">
+                        {CURRENCIES.filter(c => !POPULAR_CURRENCIES.includes(c.code)).map(curr => (
+                          <option key={curr.code} value={curr.code}>
+                            {curr.symbol} - {curr.name} ({curr.code})
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                  
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <Icon name="warning" size={16} className="text-yellow-600 mt-0.5" />
+                      <div className="text-sm text-yellow-800">
+                        <p className="font-medium mb-1">Important Notice</p>
+                        <p>Changing currency will not convert existing prices or amounts. You may need to update your product prices manually.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowCurrencyForm(false);
+                        setSelectedCurrency(user.currency || DEFAULT_CURRENCY);
+                      }}
+                      className="btn-secondary flex-1"
+                      disabled={changingCurrency}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleCurrencyChange(selectedCurrency)}
+                      className="btn-primary flex-1 flex items-center justify-center gap-2"
+                      disabled={changingCurrency || selectedCurrency === user.currency}
+                    >
+                      {changingCurrency ? (
+                        <>
+                          <Icon name="sync" size={16} className="animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        'Update Currency'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

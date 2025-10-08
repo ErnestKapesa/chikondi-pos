@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { getUser } from '../utils/db';
+import { getUser } from '../utils/dbUnified';
 import { DEFAULT_CURRENCY, getCurrencyByCode, formatCurrency } from '../utils/currencies';
 
 const CurrencyContext = createContext();
