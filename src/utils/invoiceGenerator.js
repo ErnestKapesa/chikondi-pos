@@ -1,6 +1,5 @@
 // Smart Invoice Generator for Chikondi POS
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { getUser } from './db';
 
 // Invoice templates and configurations
@@ -163,43 +162,69 @@ export async function generateInvoicePDF(invoiceData, template = 'professional')
       yPosition += customerDetails.length * 6 + 10;
     }
     
-    // Items Table
-    const tableColumns = ['Item', 'Qty', 'Unit Price', 'Total'];
-    const tableRows = invoiceData.items.map(item => [
-      item.name || item.description,
-      (item.quantity || 1).toString(),
-      formatCurrency(item.price || item.unitPrice, user?.currency),
-      formatCurrency((item.quantity || 1) * (item.price || item.unitPrice), user?.currency)
-    ]);
+    // Items Table - Manual Implementation
+    const tableStartY = yPosition;
+    const tableWidth = pageWidth - 40;
+    const colWidths = [100, 30, 50, 50]; // Item, Qty, Unit Price, Total
+    const rowHeight = 12;
     
-    doc.autoTable({
-      startY: yPosition,
-      head: [tableColumns],
-      body: tableRows,
-      theme: 'grid',
-      headStyles: {
-        fillColor: primaryColor,
-        textColor: [255, 255, 255],
-        fontSize: config.fonts.body,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: config.fonts.body,
-        textColor: textColor
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252]
-      },
-      columnStyles: {
-        0: { cellWidth: 80 },
-        1: { cellWidth: 20, halign: 'center' },
-        2: { cellWidth: 40, halign: 'right' },
-        3: { cellWidth: 40, halign: 'right' }
-      }
+    // Table Header
+    doc.setFillColor(primaryColor.r, primaryColor.g, primaryColor.b);
+    doc.rect(20, tableStartY, tableWidth, rowHeight, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(config.fonts.body);
+    doc.setFont('helvetica', 'bold');
+    
+    const headers = ['Item', 'Qty', 'Unit Price', 'Total'];
+    let xPos = 25;
+    headers.forEach((header, index) => {
+      doc.text(header, xPos, tableStartY + 8);
+      xPos += colWidths[index];
     });
     
-    // Get the final Y position after the table
-    yPosition = doc.lastAutoTable.finalY + 20;
+    yPosition = tableStartY + rowHeight;
+    
+    // Table Rows
+    doc.setTextColor(textColor.r, textColor.g, textColor.b);
+    doc.setFont('helvetica', 'normal');
+    
+    invoiceData.items.forEach((item, rowIndex) => {
+      const isEvenRow = rowIndex % 2 === 0;
+      
+      // Alternate row background
+      if (isEvenRow) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(20, yPosition, tableWidth, rowHeight, 'F');
+      }
+      
+      // Row data
+      const rowData = [
+        item.name || item.description || 'Item',
+        (item.quantity || 1).toString(),
+        formatCurrency(item.price || item.unitPrice || 0, user?.currency),
+        formatCurrency((item.quantity || 1) * (item.price || item.unitPrice || 0), user?.currency)
+      ];
+      
+      xPos = 25;
+      rowData.forEach((data, colIndex) => {
+        const align = colIndex === 0 ? 'left' : colIndex === 1 ? 'center' : 'right';
+        const textX = align === 'left' ? xPos : 
+                     align === 'center' ? xPos + (colWidths[colIndex] / 2) : 
+                     xPos + colWidths[colIndex] - 5;
+        
+        doc.text(data, textX, yPosition + 8, { align });
+        xPos += colWidths[colIndex];
+      });
+      
+      yPosition += rowHeight;
+    });
+    
+    // Table border
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(20, tableStartY, tableWidth, yPosition - tableStartY);
+    
+    yPosition += 10;
     
     // Totals Section
     const totals = [
@@ -312,7 +337,7 @@ export function createInvoiceFromSale(saleData, customer = null, businessInfo = 
   };
 }
 
-// Download PDF invoice
+// Download PDF invoice with fallback
 export async function downloadInvoice(invoiceData, template = 'professional', filename = null) {
   try {
     const doc = await generateInvoicePDF(invoiceData, template);
@@ -321,7 +346,16 @@ export async function downloadInvoice(invoiceData, template = 'professional', fi
     return true;
   } catch (error) {
     console.error('Error downloading invoice:', error);
-    return false;
+    
+    // Fallback to HTML invoice
+    try {
+      const { printHTMLInvoice } = await import('./simpleInvoice');
+      const customer = invoiceData.customer;
+      return printHTMLInvoice(invoiceData, customer);
+    } catch (fallbackError) {
+      console.error('Fallback invoice also failed:', fallbackError);
+      return false;
+    }
   }
 }
 

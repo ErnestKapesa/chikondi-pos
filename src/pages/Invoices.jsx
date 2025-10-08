@@ -12,6 +12,7 @@ import {
   printInvoice,
   INVOICE_TEMPLATES 
 } from '../utils/invoiceGenerator';
+import { printHTMLInvoice, shareInvoiceText } from '../utils/simpleInvoice';
 
 export default function Invoices() {
   const [sales, setSales] = useState([]);
@@ -116,6 +117,34 @@ export default function Invoices() {
     } catch (error) {
       console.error('Error printing invoice:', error);
       alert('Failed to print invoice');
+    }
+    setGenerating(false);
+    setShowInvoiceModal(false);
+  };
+
+  const handleSimpleInvoice = async () => {
+    if (!selectedSale) return;
+    
+    setGenerating(true);
+    try {
+      const customer = customers.find(c => c.id === selectedSale.customerId);
+      const invoiceData = createInvoiceFromSale(selectedSale, customer, businessInfo);
+      
+      const success = printHTMLInvoice(invoiceData, customer);
+      if (success) {
+        analytics.dataExported('html', 'invoice_simple');
+      } else {
+        // Fallback to text sharing
+        const textSuccess = await shareInvoiceText(invoiceData, customer);
+        if (textSuccess) {
+          analytics.dataExported('text', 'invoice_text');
+        } else {
+          alert('Failed to generate invoice');
+        }
+      }
+    } catch (error) {
+      console.error('Error generating simple invoice:', error);
+      alert('Failed to generate invoice');
     }
     setGenerating(false);
     setShowInvoiceModal(false);
@@ -328,7 +357,7 @@ export default function Invoices() {
                 className="btn-primary w-full flex items-center justify-center gap-2"
               >
                 <Icon name="download" size={20} />
-                {generating ? 'Generating...' : 'Download PDF'}
+                {generating ? 'Generating...' : 'Generate PDF Invoice'}
               </button>
               
               <div className="grid grid-cols-2 gap-3">
@@ -349,6 +378,15 @@ export default function Invoices() {
                   Print
                 </button>
               </div>
+
+              <button
+                onClick={handleSimpleInvoice}
+                disabled={generating}
+                className="btn-secondary w-full flex items-center justify-center gap-2"
+              >
+                <Icon name="receipt" size={20} />
+                Simple Invoice (Fallback)
+              </button>
             </div>
 
             {/* Template Preview Info */}
